@@ -5,8 +5,9 @@ import { Plus, Clock, FileText, Trash2, Edit2, Timer } from 'lucide-react';
 import { Workout, WorkoutType, TimerConfig } from '../types';
 
 export const WorkoutLibrary: React.FC = () => {
-  const { workouts, addWorkout, deleteWorkout } = useStore();
+  const { workouts, addWorkout, updateWorkout, deleteWorkout } = useStore();
   const [isCreating, setIsCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // Simple form state
   const [formData, setFormData] = useState<Partial<Workout>>({
@@ -16,6 +17,8 @@ export const WorkoutLibrary: React.FC = () => {
       description: '',
       steps: []
   });
+  
+  const [stepsText, setStepsText] = useState('');
 
   const [hasTimer, setHasTimer] = useState(false);
   const [timerConfig, setTimerConfig] = useState<TimerConfig>({
@@ -26,17 +29,58 @@ export const WorkoutLibrary: React.FC = () => {
     restBetweenSetsSeconds: 120
   });
 
+  const handleEdit = (workout: Workout) => {
+      setFormData({
+          name: workout.name,
+          type: workout.type,
+          durationMinutes: workout.durationMinutes,
+          description: workout.description,
+          steps: workout.steps
+      });
+      setStepsText(workout.steps.join('\n'));
+      
+      if (workout.timerConfig) {
+          setHasTimer(true);
+          setTimerConfig(workout.timerConfig);
+      } else {
+          setHasTimer(false);
+          setTimerConfig({
+            workSeconds: 7,
+            restSeconds: 3,
+            reps: 6,
+            sets: 1,
+            restBetweenSetsSeconds: 120
+          });
+      }
+      setEditingId(workout.id);
+      setIsCreating(true);
+  };
+
+  const resetForm = () => {
+      setIsCreating(false);
+      setEditingId(null);
+      setFormData({ name: '', type: WorkoutType.BOULDER, durationMinutes: 60, description: '', steps: [] });
+      setStepsText('');
+      setHasTimer(false);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if(formData.name && formData.type) {
-          const newWorkout = {
+          const finalSteps = stepsText.split('\n').filter(s => s.trim().length > 0);
+          
+          const workoutData = {
             ...formData,
+            steps: finalSteps,
             timerConfig: hasTimer ? timerConfig : undefined
           };
-          addWorkout(newWorkout as Omit<Workout, 'id'>);
-          setIsCreating(false);
-          setFormData({ name: '', type: WorkoutType.BOULDER, durationMinutes: 60, description: '', steps: [] });
-          setHasTimer(false);
+
+          if (editingId) {
+             updateWorkout({ ...workoutData, id: editingId } as Workout);
+          } else {
+             addWorkout(workoutData as Omit<Workout, 'id'>);
+          }
+          resetForm();
       }
   };
 
@@ -72,14 +116,16 @@ export const WorkoutLibrary: React.FC = () => {
                          <Button variant="danger" size="sm" onClick={() => deleteWorkout(workout.id)} className="px-2">
                              <Trash2 className="w-4 h-4" />
                          </Button>
-                         {/* Edit functionality omitted for brevity in MVP */}
+                         <Button variant="secondary" size="sm" onClick={() => handleEdit(workout)} className="px-2">
+                             <Edit2 className="w-4 h-4" />
+                         </Button>
                     </div>
                 </div>
             ))}
           </div>
       ) : (
           <div className="bg-stone-800 p-6 rounded-xl border border-stone-700 animate-in fade-in slide-in-from-bottom-4">
-              <h2 className="text-xl font-bold mb-4">Create Workout</h2>
+              <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit Workout' : 'Create Workout'}</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                       <label className="block text-xs font-medium text-stone-400 mb-1">Name</label>
@@ -118,6 +164,15 @@ export const WorkoutLibrary: React.FC = () => {
                         className="w-full bg-stone-900 border border-stone-700 rounded-lg p-2 text-white outline-none h-20"
                         value={formData.description}
                         onChange={e => setFormData({...formData, description: e.target.value})}
+                      />
+                  </div>
+                   <div>
+                      <label className="block text-xs font-medium text-stone-400 mb-1">Steps (one per line)</label>
+                      <textarea 
+                        className="w-full bg-stone-900 border border-stone-700 rounded-lg p-2 text-white outline-none h-24 font-mono text-sm"
+                        value={stepsText}
+                        onChange={e => setStepsText(e.target.value)}
+                        placeholder="1. Warm up&#10;2. Main set&#10;3. Cool down"
                       />
                   </div>
 
@@ -190,8 +245,10 @@ export const WorkoutLibrary: React.FC = () => {
                   </div>
 
                   <div className="flex gap-3 pt-2">
-                      <Button type="button" variant="ghost" onClick={() => setIsCreating(false)} className="flex-1">Cancel</Button>
-                      <Button type="submit" className="flex-1">Save Workout</Button>
+                      <Button type="button" variant="ghost" onClick={resetForm} className="flex-1">Cancel</Button>
+                      <Button type="submit" className="flex-1">
+                          {editingId ? 'Update Workout' : 'Create Workout'}
+                      </Button>
                   </div>
               </form>
           </div>
