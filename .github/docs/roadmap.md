@@ -25,6 +25,7 @@
 | ✅ Audio Cues for Timers | Web Audio API beeps for timer transitions | Jan 2026 |
 | ✅ Timer Presets | Pre-loaded hangboard protocols in WorkoutForm | Jan 2026 |
 | ✅ Progress Dashboard | Stats, calendar heatmap, grade profile, time ranges | Jan 2026 |
+| ✅ Goal Tracking | Grade targets, strength benchmarks, auto-detection, achievements | Jan 2026 |
 
 ---
 
@@ -32,8 +33,7 @@
 
 | # | Feature | Status | Clarified? | Doc |
 |---|---------|--------|------------|-----|
-| 1 | Goal Tracking | 🔲 | ✅ | [goal-tracking.md](goal-tracking.md) |
-| 2 | Periodization / Weekly Templates | 🔲 | ❓ | [periodization-training.md](periodization-training.md) |
+| 1 | Periodization / Weekly Templates | 🔲 | ❓ | [periodization-training.md](periodization-training.md) |
 
 ---
 
