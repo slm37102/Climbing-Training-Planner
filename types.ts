@@ -8,12 +8,41 @@ export enum WorkoutType {
   OTHER = 'Other'
 }
 
+export enum ExerciseCategory {
+  ANTAGONIST = 'Antagonist & Stabilizer',
+  CORE = 'Core Training',
+  LIMIT_STRENGTH = 'Limit-Strength',
+  POWER = 'Power Training',
+  STRENGTH_ENDURANCE = 'Strength/Power-Endurance',
+  AEROBIC = 'Local/Generalized Aerobic'
+}
+
 export interface TimerConfig {
   workSeconds: number;
   restSeconds: number;
   reps: number;
   sets: number;
   restBetweenSetsSeconds: number;
+}
+
+export interface Exercise {
+  id: string;
+  name: string;
+  description?: string;
+  category: ExerciseCategory;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  defaultSets?: number;
+  defaultReps?: number;
+  defaultDurationSeconds?: number;
+  timerConfig?: TimerConfig;
+}
+
+export interface WorkoutExercise {
+  exerciseId: string;
+  sets?: number;
+  reps?: number;
+  durationSeconds?: number;
+  notes?: string;
 }
 
 export interface Workout {
@@ -24,6 +53,7 @@ export interface Workout {
   durationMinutes: number;
   steps: string[]; // Simple text steps for now
   timerConfig?: TimerConfig;
+  exercises?: WorkoutExercise[]; // Structured exercises
 }
 
 export interface ScheduledWorkout {
@@ -41,6 +71,19 @@ export interface ClimbLog {
   timestamp: number;
 }
 
+export interface ExerciseLog {
+  id: string;
+  exerciseId: string;
+  completedSets: number;
+  completedReps: number;
+  addedWeight?: number;      // kg or lbs based on user setting
+  edgeDepth?: number;        // mm for hangboard
+  resistanceBand?: string;   // color/strength descriptor
+  rpe?: number;              // 1-10
+  notes?: string;
+  timestamp: number;
+}
+
 export interface SessionLog {
   id: string;
   workoutId: string | null; // null if ad-hoc
@@ -53,11 +96,13 @@ export interface SessionLog {
   skinCondition: 'Good' | 'Fair' | 'Bad';
   sleepQuality: 'Good' | 'Fair' | 'Bad';
   climbs: ClimbLog[];
+  exerciseLogs?: ExerciseLog[];
 }
 
 export interface UserSettings {
   defaultGradeSystem: 'V-Scale' | 'Font';
   startOfWeek: 'Monday' | 'Sunday';
+  weightUnit: 'kg' | 'lbs';
 }
 
 export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS';

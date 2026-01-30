@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../utils';
-import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check } from 'lucide-react';
+import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { SessionLog, WorkoutType } from '../types';
 
@@ -11,6 +12,7 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { schedule, workouts, sessions, activeSessionId, startSession, deleteSession, updateSession, toggleScheduledWorkout } = useStore();
+  const { user, logout } = useAuth();
   const todayStr = formatDate(new Date());
   
   // Edit State
@@ -88,9 +90,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <h1 className="text-2xl font-bold text-stone-100">Welcome Back</h1>
           <p className="text-stone-400 text-sm">Let's crush some plastic today.</p>
         </div>
-        <div className="h-10 w-10 bg-amber-500 rounded-full flex items-center justify-center text-stone-900 font-bold">
-          ME
-        </div>
+        <button 
+          onClick={logout}
+          className="h-10 w-10 bg-amber-500 rounded-full flex items-center justify-center text-stone-900 font-bold hover:bg-amber-400 transition-colors group relative"
+          title="Logout"
+        >
+          <span className="group-hover:hidden">
+            {user?.email?.charAt(0).toUpperCase() || 'U'}
+          </span>
+          <LogOut className="w-5 h-5 hidden group-hover:block" />
+        </button>
       </header>
 
       {/* Recovery Alert */}

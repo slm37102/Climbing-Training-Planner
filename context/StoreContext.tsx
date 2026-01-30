@@ -1,18 +1,35 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType } from '../types';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot,
+  writeBatch,
+  query
+} from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from './AuthContext';
+import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory } from '../types';
 import { generateId, formatDate } from '../utils';
 
 interface StoreContextType {
   workouts: Workout[];
+  exercises: Exercise[];
   schedule: ScheduledWorkout[];
   sessions: SessionLog[];
   settings: UserSettings;
   activeSessionId: string | null;
   
-  // Actions
+  // Workout Actions
   addWorkout: (workout: Omit<Workout, 'id'>) => void;
   updateWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
+  
+  // Exercise Actions
+  addExercise: (exercise: Omit<Exercise, 'id'>) => void;
+  updateExercise: (exercise: Exercise) => void;
+  deleteExercise: (id: string) => void;
   
   scheduleWorkout: (date: string, workoutId: string) => void;
   removeScheduledWorkout: (scheduleId: string) => void;
@@ -71,76 +88,318 @@ const SEED_WORKOUTS: Workout[] = [
   }
 ];
 
+const SEED_EXERCISES: Exercise[] = [
+  // Antagonist & Stabilizer
+  {
+    id: 'e1',
+    name: 'Push-ups',
+    description: 'Standard push-ups for chest and tricep balance.',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 15
+  },
+  {
+    id: 'e2',
+    name: 'Reverse Wrist Curls',
+    description: 'Forearm extensor strengthening to prevent elbow issues.',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 20
+  },
+  {
+    id: 'e3',
+    name: 'External Rotations',
+    description: 'Shoulder stabilizer work with band or light weight.',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 15
+  },
+  // Core Training
+  {
+    id: 'e4',
+    name: 'Hanging Leg Raises',
+    description: 'Hang from bar, raise legs to 90 degrees or higher.',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Intermediate',
+    defaultSets: 3,
+    defaultReps: 10
+  },
+  {
+    id: 'e5',
+    name: 'Front Lever Progressions',
+    description: 'Tuck, advanced tuck, or full front lever holds.',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Advanced',
+    defaultSets: 5,
+    defaultDurationSeconds: 10
+  },
+  {
+    id: 'e6',
+    name: 'Hollow Body Hold',
+    description: 'Gymnastic hold for core tension.',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultDurationSeconds: 30
+  },
+  // Limit-Strength
+  {
+    id: 'e7',
+    name: 'Max Hangs',
+    description: '10 second max weight hangs on 18-20mm edge.',
+    category: ExerciseCategory.LIMIT_STRENGTH,
+    difficulty: 'Advanced',
+    defaultSets: 5,
+    defaultDurationSeconds: 10,
+    timerConfig: { workSeconds: 10, restSeconds: 0, reps: 1, sets: 5, restBetweenSetsSeconds: 180 }
+  },
+  {
+    id: 'e8',
+    name: 'One-Arm Lock-offs',
+    description: 'Lock off at 90 degrees, assisted or weighted.',
+    category: ExerciseCategory.LIMIT_STRENGTH,
+    difficulty: 'Advanced',
+    defaultSets: 3,
+    defaultReps: 3
+  },
+  // Power Training
+  {
+    id: 'e9',
+    name: 'Campus Ladders',
+    description: '1-2-3 or 1-3-5 campus board sequences.',
+    category: ExerciseCategory.POWER,
+    difficulty: 'Advanced',
+    defaultSets: 5,
+    defaultReps: 2
+  },
+  {
+    id: 'e10',
+    name: 'Explosive Pull-ups',
+    description: 'Pull up fast, hands leave bar at top.',
+    category: ExerciseCategory.POWER,
+    difficulty: 'Intermediate',
+    defaultSets: 4,
+    defaultReps: 5
+  },
+  // Strength/Power-Endurance
+  {
+    id: 'e11',
+    name: 'Repeaters 7/3',
+    description: '7 second hang, 3 second rest, 6 reps per set.',
+    category: ExerciseCategory.STRENGTH_ENDURANCE,
+    difficulty: 'Intermediate',
+    defaultSets: 3,
+    defaultReps: 6,
+    timerConfig: { workSeconds: 7, restSeconds: 3, reps: 6, sets: 3, restBetweenSetsSeconds: 180 }
+  },
+  {
+    id: 'e12',
+    name: '4x4s',
+    description: '4 boulder problems, 4 times through with minimal rest.',
+    category: ExerciseCategory.STRENGTH_ENDURANCE,
+    difficulty: 'Intermediate',
+    defaultSets: 4,
+    defaultReps: 4
+  },
+  {
+    id: 'e13',
+    name: 'Linked Boulder Circuit',
+    description: 'Chain 3-5 easy boulders without rest.',
+    category: ExerciseCategory.STRENGTH_ENDURANCE,
+    difficulty: 'Intermediate',
+    defaultSets: 3,
+    defaultReps: 1
+  },
+  // Local/Generalized Aerobic
+  {
+    id: 'e14',
+    name: 'ARC Training',
+    description: '20-45 minutes of continuous easy climbing.',
+    category: ExerciseCategory.AEROBIC,
+    difficulty: 'Beginner',
+    defaultSets: 1,
+    defaultDurationSeconds: 1800
+  },
+  {
+    id: 'e15',
+    name: 'Easy Traversing',
+    description: 'Traverse walls at low intensity for recovery.',
+    category: ExerciseCategory.AEROBIC,
+    difficulty: 'Beginner',
+    defaultSets: 1,
+    defaultDurationSeconds: 1200
+  }
+];
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [schedule, setSchedule] = useState<ScheduledWorkout[]>([]);
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings>({
     defaultGradeSystem: 'V-Scale',
-    startOfWeek: 'Monday'
+    startOfWeek: 'Monday',
+    weightUnit: 'kg'
   });
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load data
+  // Subscribe to Firestore data when user is logged in
   useEffect(() => {
-    const loadedWorkouts = localStorage.getItem('sendit_workouts');
-    const loadedSchedule = localStorage.getItem('sendit_schedule');
-    const loadedSessions = localStorage.getItem('sendit_sessions');
-    const loadedActive = localStorage.getItem('sendit_active_session');
-    
-    if (loadedWorkouts) setWorkouts(JSON.parse(loadedWorkouts));
-    else setWorkouts(SEED_WORKOUTS);
-
-    if (loadedSchedule) {
-      const parsed = JSON.parse(loadedSchedule);
-      // Migration: Ensure IDs exist for legacy data
-      const migrated = parsed.map((s: any) => s.id ? s : { ...s, id: generateId() });
-      setSchedule(migrated);
+    if (!user) {
+      // Reset state when logged out
+      setWorkouts([]);
+      setExercises([]);
+      setSchedule([]);
+      setSessions([]);
+      setActiveSessionId(null);
+      setIsLoaded(false);
+      return;
     }
 
-    if (loadedSessions) setSessions(JSON.parse(loadedSessions));
-    if (loadedActive) setActiveSessionId(JSON.parse(loadedActive));
-  }, []);
+    const userId = user.uid;
+    const unsubscribers: (() => void)[] = [];
 
-  // Save data effects
-  useEffect(() => localStorage.setItem('sendit_workouts', JSON.stringify(workouts)), [workouts]);
-  useEffect(() => localStorage.setItem('sendit_schedule', JSON.stringify(schedule)), [schedule]);
-  useEffect(() => localStorage.setItem('sendit_sessions', JSON.stringify(sessions)), [sessions]);
-  useEffect(() => localStorage.setItem('sendit_active_session', JSON.stringify(activeSessionId)), [activeSessionId]);
+    // Subscribe to workouts
+    const workoutsRef = collection(db, 'users', userId, 'workouts');
+    unsubscribers.push(
+      onSnapshot(query(workoutsRef), (snapshot) => {
+        if (snapshot.empty && !isLoaded) {
+          // Seed default workouts for new users
+          seedDefaultData(userId);
+        } else {
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workout));
+          setWorkouts(data);
+        }
+      })
+    );
 
-  const addWorkout = (workout: Omit<Workout, 'id'>) => {
-    const newWorkout = { ...workout, id: generateId() };
-    setWorkouts([...workouts, newWorkout]);
-  };
+    // Subscribe to exercises
+    const exercisesRef = collection(db, 'users', userId, 'exercises');
+    unsubscribers.push(
+      onSnapshot(query(exercisesRef), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exercise));
+        setExercises(data);
+      })
+    );
 
-  const updateWorkout = (workout: Workout) => {
-    setWorkouts(workouts.map(w => w.id === workout.id ? workout : w));
-  };
+    // Subscribe to schedule
+    const scheduleRef = collection(db, 'users', userId, 'schedule');
+    unsubscribers.push(
+      onSnapshot(query(scheduleRef), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScheduledWorkout));
+        setSchedule(data);
+      })
+    );
 
-  const deleteWorkout = (id: string) => {
-    setWorkouts(workouts.filter(w => w.id !== id));
-  };
+    // Subscribe to sessions
+    const sessionsRef = collection(db, 'users', userId, 'sessions');
+    unsubscribers.push(
+      onSnapshot(query(sessionsRef), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SessionLog));
+        setSessions(data);
+      })
+    );
 
-  const scheduleWorkout = (date: string, workoutId: string) => {
-    // Append new workout, allowing duplicates for multiple sessions per day
-    const newItem: ScheduledWorkout = { 
-      id: generateId(), 
-      date, 
-      workoutId, 
-      completed: false 
+    // Subscribe to user settings (including activeSessionId)
+    const settingsRef = doc(db, 'users', userId, 'meta', 'settings');
+    unsubscribers.push(
+      onSnapshot(settingsRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data.activeSessionId !== undefined) {
+            setActiveSessionId(data.activeSessionId);
+          }
+          if (data.settings) {
+            setSettings(data.settings);
+          }
+        }
+        setIsLoaded(true);
+      })
+    );
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
     };
-    setSchedule(prev => [...prev, newItem]);
+  }, [user]);
+
+  // Seed default workouts and exercises for new users
+  const seedDefaultData = async (userId: string) => {
+    const batch = writeBatch(db);
+    SEED_WORKOUTS.forEach(workout => {
+      const ref = doc(db, 'users', userId, 'workouts', workout.id);
+      batch.set(ref, workout);
+    });
+    SEED_EXERCISES.forEach(exercise => {
+      const ref = doc(db, 'users', userId, 'exercises', exercise.id);
+      batch.set(ref, exercise);
+    });
+    // Also create settings doc
+    const settingsRef = doc(db, 'users', userId, 'meta', 'settings');
+    batch.set(settingsRef, { activeSessionId: null, settings: { defaultGradeSystem: 'V-Scale', startOfWeek: 'Monday', weightUnit: 'kg' } });
+    await batch.commit();
   };
 
-  const removeScheduledWorkout = (scheduleId: string) => {
-    setSchedule(schedule.filter(s => s.id !== scheduleId));
+  const addWorkout = async (workout: Omit<Workout, 'id'>) => {
+    if (!user) return;
+    const id = generateId();
+    const newWorkout = { ...workout, id };
+    await setDoc(doc(db, 'users', user.uid, 'workouts', id), newWorkout);
   };
 
-  const toggleScheduledWorkout = (scheduleId: string, completed: boolean) => {
-    setSchedule(prev => prev.map(s => s.id === scheduleId ? { ...s, completed } : s));
+  const updateWorkout = async (workout: Workout) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid, 'workouts', workout.id), workout);
   };
 
-  const copyWeekToNext = (startDateStr: string) => {
+  const deleteWorkout = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'workouts', id));
+  };
+
+  const addExercise = async (exercise: Omit<Exercise, 'id'>) => {
+    if (!user) return;
+    const id = generateId();
+    const newExercise = { ...exercise, id };
+    await setDoc(doc(db, 'users', user.uid, 'exercises', id), newExercise);
+  };
+
+  const updateExercise = async (exercise: Exercise) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid, 'exercises', exercise.id), exercise);
+  };
+
+  const deleteExercise = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'exercises', id));
+  };
+
+  const scheduleWorkout = async (date: string, workoutId: string) => {
+    if (!user) return;
+    const id = generateId();
+    const newItem: ScheduledWorkout = { id, date, workoutId, completed: false };
+    await setDoc(doc(db, 'users', user.uid, 'schedule', id), newItem);
+  };
+
+  const removeScheduledWorkout = async (scheduleId: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'schedule', scheduleId));
+  };
+
+  const toggleScheduledWorkout = async (scheduleId: string, completed: boolean) => {
+    if (!user) return;
+    const item = schedule.find(s => s.id === scheduleId);
+    if (item) {
+      await setDoc(doc(db, 'users', user.uid, 'schedule', scheduleId), { ...item, completed });
+    }
+  };
+
+  const copyWeekToNext = async (startDateStr: string) => {
+    if (!user) return;
     const startDate = new Date(startDateStr);
     const sourceWeekDates: string[] = [];
     
@@ -155,21 +414,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const itemsToCopy = schedule.filter(s => sourceWeekDates.includes(s.date));
     
     // Create new items shifted by 7 days
-    const newItems = itemsToCopy.map(item => {
+    const batch = writeBatch(db);
+    itemsToCopy.forEach(item => {
         const d = new Date(item.date);
         d.setDate(d.getDate() + 7);
-        return {
-            id: generateId(),
+        const id = generateId();
+        const newItem = {
+            id,
             date: formatDate(d),
             workoutId: item.workoutId,
             completed: false
         };
+        batch.set(doc(db, 'users', user.uid, 'schedule', id), newItem);
     });
-
-    setSchedule(prev => [...prev, ...newItems]);
+    await batch.commit();
   };
 
-  const startSession = (workoutId: string | null): string => {
+  const startSession = async (workoutId: string | null): Promise<string> => {
+    if (!user) return '';
     const id = generateId();
     const newSession: SessionLog = {
       id,
@@ -183,56 +445,81 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sleepQuality: 'Good',
       climbs: []
     };
-    setSessions(prev => [...prev, newSession]);
-    setActiveSessionId(id);
+    await setDoc(doc(db, 'users', user.uid, 'sessions', id), newSession);
+    await setDoc(doc(db, 'users', user.uid, 'meta', 'settings'), { 
+      activeSessionId: id,
+      settings 
+    }, { merge: true });
     return id;
   };
 
-  const updateSession = (id: string, updates: Partial<SessionLog>) => {
-    setSessions(sessions.map(s => s.id === id ? { ...s, ...updates } : s));
+  const updateSession = async (id: string, updates: Partial<SessionLog>) => {
+    if (!user) return;
+    const session = sessions.find(s => s.id === id);
+    if (session) {
+      await setDoc(doc(db, 'users', user.uid, 'sessions', id), { ...session, ...updates });
+    }
   };
 
-  const endSession = (id: string) => {
+  const endSession = async (id: string) => {
+    if (!user) return;
     const session = sessions.find(s => s.id === id);
     if (session) {
       const endTime = Date.now();
       const durationMinutes = Math.round((endTime - session.startTime) / 60000);
-      updateSession(id, { endTime, durationMinutes });
-      setActiveSessionId(null);
+      await setDoc(doc(db, 'users', user.uid, 'sessions', id), { 
+        ...session, 
+        endTime, 
+        durationMinutes 
+      });
+      await setDoc(doc(db, 'users', user.uid, 'meta', 'settings'), { 
+        activeSessionId: null,
+        settings 
+      }, { merge: true });
       
       // Mark scheduled workout as complete if applicable
       if (session.workoutId) {
         const todayStr = formatDate(new Date());
-        setSchedule(prev => {
-           let found = false;
-           return prev.map(s => {
-              if (!found && !s.completed && s.date === todayStr && s.workoutId === session.workoutId) {
-                  found = true;
-                  return { ...s, completed: true };
-              }
-              return s;
-           });
-        });
+        const todaySchedule = schedule.find(s => 
+          !s.completed && s.date === todayStr && s.workoutId === session.workoutId
+        );
+        if (todaySchedule) {
+          await setDoc(doc(db, 'users', user.uid, 'schedule', todaySchedule.id), {
+            ...todaySchedule,
+            completed: true
+          });
+        }
       }
     }
   };
 
-  const deleteSession = (id: string) => {
-    setSessions(sessions.filter(s => s.id !== id));
-    if (activeSessionId === id) setActiveSessionId(null);
+  const deleteSession = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
+    if (activeSessionId === id) {
+      await setDoc(doc(db, 'users', user.uid, 'meta', 'settings'), { 
+        activeSessionId: null,
+        settings 
+      }, { merge: true });
+    }
   };
 
-  const resetData = () => {
-    setWorkouts(SEED_WORKOUTS);
-    setSchedule([]);
-    setSessions([]);
-    setActiveSessionId(null);
-    localStorage.clear();
+  const resetData = async () => {
+    if (!user) return;
+    // Delete all user data and reseed
+    const batch = writeBatch(db);
+    workouts.forEach(w => batch.delete(doc(db, 'users', user.uid, 'workouts', w.id)));
+    exercises.forEach(e => batch.delete(doc(db, 'users', user.uid, 'exercises', e.id)));
+    schedule.forEach(s => batch.delete(doc(db, 'users', user.uid, 'schedule', s.id)));
+    sessions.forEach(s => batch.delete(doc(db, 'users', user.uid, 'sessions', s.id)));
+    await batch.commit();
+    await seedDefaultData(user.uid);
   };
 
   return (
     <StoreContext.Provider value={{
       workouts,
+      exercises,
       schedule,
       sessions,
       settings,
@@ -240,6 +527,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addWorkout,
       updateWorkout,
       deleteWorkout,
+      addExercise,
+      updateExercise,
+      deleteExercise,
       scheduleWorkout,
       removeScheduledWorkout,
       toggleScheduledWorkout,

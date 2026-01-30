@@ -1,12 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
-import { Play, Pause, Square, Plus, Check, RotateCcw, Timer, Save, SkipForward, Layers } from 'lucide-react';
-import { grades, cn, rpeDescriptions } from '../utils';
-import { ClimbLog, Workout, WorkoutType } from '../types';
+import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight, Dumbbell, TrendingUp } from 'lucide-react';
+import { grades, cn, generateId } from '../utils';
+import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise } from '../types';
+
+// State for tracking exercise progress during session
+interface ExerciseProgress {
+  exerciseId: string;
+  completedSets: number;
+  completedReps: number;
+  addedWeight?: number;
+  edgeDepth?: number;
+  resistanceBand?: string;
+  rpe?: number;
+  notes?: string;
+  isExpanded: boolean;
+}
 
 export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-  const { activeSessionId, sessions, workouts, schedule, startSession, updateSession, endSession, deleteSession } = useStore();
+  const { activeSessionId, sessions, workouts, exercises, settings, startSession, updateSession, endSession } = useStore();
   const [elapsedTime, setElapsedTime] = useState(0);
   
   // Standard Rest Timer State
@@ -31,12 +44,53 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   const [rpe, setRpe] = useState(5);
   const [notes, setNotes] = useState('');
 
+  // Exercise tracking state
+  const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([]);
+
   // Find current session object
   const session = sessions.find(s => s.id === activeSessionId);
   const workout = session?.workoutId ? workouts.find(w => w.id === session.workoutId) : null;
 
+  // Get previous session data for progressive overload hints
+  const previousSessionLogs = useMemo(() => {
+    if (!workout) return new Map<string, ExerciseLog>();
+    // Find last session with same workout
+    const prevSession = sessions
+      .filter(s => s.id !== activeSessionId && s.workoutId === workout.id && s.exerciseLogs?.length)
+      .sort((a, b) => b.startTime - a.startTime)[0];
+    
+    const logsMap = new Map<string, ExerciseLog>();
+    prevSession?.exerciseLogs?.forEach(log => {
+      logsMap.set(log.exerciseId, log);
+    });
+    return logsMap;
+  }, [sessions, workout, activeSessionId]);
+
+  // Initialize exercise progress when workout loads
+  useEffect(() => {
+    if (workout?.exercises && exerciseProgress.length === 0) {
+      const initial: ExerciseProgress[] = workout.exercises.map(we => {
+        const exercise = exercises.find(e => e.id === we.exerciseId);
+        const prevLog = previousSessionLogs.get(we.exerciseId);
+        return {
+          exerciseId: we.exerciseId,
+          completedSets: 0,
+          completedReps: 0,
+          addedWeight: prevLog?.addedWeight,
+          edgeDepth: prevLog?.edgeDepth,
+          resistanceBand: prevLog?.resistanceBand,
+          isExpanded: false
+        };
+      });
+      setExerciseProgress(initial);
+    }
+  }, [workout, exercises, previousSessionLogs]);
+
   // Determine if we show the climb logging UI (Grade/Attempts/Sent)
   const showClimbLogging = !workout || (workout.type !== WorkoutType.HANGBOARD && workout.type !== WorkoutType.CONDITIONING && workout.type !== WorkoutType.REST);
+
+  // Show exercise checklist if workout has structured exercises
+  const showExerciseChecklist = workout?.exercises && workout.exercises.length > 0;
 
   // Initialize Interval Timer if workout has config
   useEffect(() => {
@@ -138,7 +192,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   const addClimb = (sent: boolean) => {
       if (!session) return;
       const newClimb: ClimbLog = {
-          id: Math.random().toString(36),
+          id: generateId(),
           grade: selectedGrade,
           attempts: attempts,
           sent,
@@ -152,9 +206,54 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       }
   };
 
+  // Exercise progress helpers
+  const updateExerciseProgress = (exerciseId: string, updates: Partial<ExerciseProgress>) => {
+    setExerciseProgress(prev => prev.map(ep => 
+      ep.exerciseId === exerciseId ? { ...ep, ...updates } : ep
+    ));
+  };
+
+  const toggleExerciseExpanded = (exerciseId: string) => {
+    setExerciseProgress(prev => prev.map(ep =>
+      ep.exerciseId === exerciseId ? { ...ep, isExpanded: !ep.isExpanded } : ep
+    ));
+  };
+
+  const incrementSet = (exerciseId: string) => {
+    const progress = exerciseProgress.find(ep => ep.exerciseId === exerciseId);
+    const we = workout?.exercises?.find(e => e.exerciseId === exerciseId);
+    const exercise = exercises.find(e => e.id === exerciseId);
+    const targetSets = we?.sets || exercise?.defaultSets || 3;
+    
+    if (progress && progress.completedSets < targetSets) {
+      updateExerciseProgress(exerciseId, { completedSets: progress.completedSets + 1 });
+      // Auto-start rest timer
+      if (timerMode !== 'interval') {
+        startRestTimer(120);
+      }
+    }
+  };
+
   const handleFinish = () => {
       if (!session) return;
-      updateSession(session.id, { rpe, notes });
+      
+      // Build exercise logs from progress
+      const exerciseLogs: ExerciseLog[] = exerciseProgress
+        .filter(ep => ep.completedSets > 0)
+        .map(ep => ({
+          id: generateId(),
+          exerciseId: ep.exerciseId,
+          completedSets: ep.completedSets,
+          completedReps: ep.completedReps,
+          addedWeight: ep.addedWeight,
+          edgeDepth: ep.edgeDepth,
+          resistanceBand: ep.resistanceBand,
+          rpe: ep.rpe,
+          notes: ep.notes,
+          timestamp: Date.now()
+        }));
+      
+      updateSession(session.id, { rpe, notes, exerciseLogs });
       endSession(session.id);
       onComplete();
   };
@@ -276,6 +375,164 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
                      </div>
                  )}
              </div>
+          )}
+
+          {/* Exercise Checklist - For workouts with structured exercises */}
+          {showExerciseChecklist && workout?.exercises && (
+            <div className="bg-stone-800 p-4 rounded-xl border border-stone-700">
+              <div className="flex items-center gap-2 mb-3">
+                <Dumbbell className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-stone-300 uppercase tracking-wide">Exercises</h3>
+              </div>
+              
+              <div className="space-y-2">
+                {workout.exercises.map(we => {
+                  const exercise = exercises.find(e => e.id === we.exerciseId);
+                  const progress = exerciseProgress.find(ep => ep.exerciseId === we.exerciseId);
+                  const prevLog = previousSessionLogs.get(we.exerciseId);
+                  const targetSets = we.sets || exercise?.defaultSets || 3;
+                  const targetReps = we.reps || exercise?.defaultReps;
+                  const targetDuration = we.durationSeconds || exercise?.defaultDurationSeconds;
+                  const isComplete = progress && progress.completedSets >= targetSets;
+                  
+                  if (!exercise || !progress) return null;
+                  
+                  return (
+                    <div key={we.exerciseId} className={cn(
+                      "rounded-lg border transition-colors",
+                      isComplete ? "bg-green-500/10 border-green-500/30" : "bg-stone-900 border-stone-700"
+                    )}>
+                      {/* Exercise Header */}
+                      <button
+                        onClick={() => toggleExerciseExpanded(we.exerciseId)}
+                        className="w-full p-3 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                            isComplete ? "bg-green-500 text-white" : "bg-stone-700 text-stone-400"
+                          )}>
+                            {isComplete ? <Check className="w-3.5 h-3.5" /> : progress.completedSets}
+                          </div>
+                          <div className="text-left">
+                            <div className={cn("font-medium text-sm", isComplete ? "text-green-400" : "text-white")}>
+                              {exercise.name}
+                            </div>
+                            <div className="text-xs text-stone-500">
+                              {progress.completedSets}/{targetSets} sets
+                              {targetReps && ` • ${targetReps} reps`}
+                              {targetDuration && ` • ${targetDuration}s`}
+                            </div>
+                          </div>
+                        </div>
+                        {progress.isExpanded ? (
+                          <ChevronDown className="w-4 h-4 text-stone-500" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-stone-500" />
+                        )}
+                      </button>
+                      
+                      {/* Expanded Details */}
+                      {progress.isExpanded && (
+                        <div className="px-3 pb-3 space-y-3 border-t border-stone-700/50 pt-3">
+                          {/* Quick Set Completion */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-stone-400">Complete Set</span>
+                            <Button
+                              size="sm"
+                              variant={isComplete ? "secondary" : "primary"}
+                              disabled={isComplete}
+                              onClick={() => incrementSet(we.exerciseId)}
+                            >
+                              <Check className="w-3.5 h-3.5 mr-1" />
+                              Set {progress.completedSets + 1}
+                            </Button>
+                          </div>
+                          
+                          {/* Weight Input */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-stone-400">Added Weight</span>
+                              {prevLog?.addedWeight && (
+                                <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
+                                  <TrendingUp className="w-3 h-3" />
+                                  Last: {prevLog.addedWeight}{settings.weightUnit}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={progress.addedWeight || ''}
+                                onChange={(e) => updateExerciseProgress(we.exerciseId, { 
+                                  addedWeight: e.target.value ? parseFloat(e.target.value) : undefined 
+                                })}
+                                className="w-16 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-sm text-right"
+                                placeholder="0"
+                              />
+                              <span className="text-xs text-stone-500">{settings.weightUnit}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Edge Depth (for hangboard exercises) */}
+                          {exercise.category === 'Limit-Strength' && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-stone-400">Edge Depth</span>
+                                {prevLog?.edgeDepth && (
+                                  <span className="text-[10px] text-amber-500">
+                                    Last: {prevLog.edgeDepth}mm
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  value={progress.edgeDepth || ''}
+                                  onChange={(e) => updateExerciseProgress(we.exerciseId, { 
+                                    edgeDepth: e.target.value ? parseFloat(e.target.value) : undefined 
+                                  })}
+                                  className="w-16 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-sm text-right"
+                                  placeholder="18"
+                                />
+                                <span className="text-xs text-stone-500">mm</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Resistance Band (for assisted exercises) */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-stone-400">Resistance Band</span>
+                            <select
+                              value={progress.resistanceBand || ''}
+                              onChange={(e) => updateExerciseProgress(we.exerciseId, { resistanceBand: e.target.value || undefined })}
+                              className="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-sm"
+                            >
+                              <option value="">None</option>
+                              <option value="light">Light (Green)</option>
+                              <option value="medium">Medium (Blue)</option>
+                              <option value="heavy">Heavy (Black)</option>
+                            </select>
+                          </div>
+                          
+                          {/* Exercise-specific notes */}
+                          <div>
+                            <span className="text-xs text-stone-400 block mb-1">Notes</span>
+                            <input
+                              type="text"
+                              value={progress.notes || ''}
+                              onChange={(e) => updateExerciseProgress(we.exerciseId, { notes: e.target.value })}
+                              className="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-sm"
+                              placeholder="How did it feel?"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {/* Climb Logger - Conditionally Rendered */}
