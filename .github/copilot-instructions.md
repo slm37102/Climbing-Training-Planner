@@ -8,9 +8,10 @@
 
 ## Git Workflow
 - **Commit and push at every milestone** - After completing a feature, fix, or significant change
+- **Never push directly to `main`** - It is production, always create a feature branch first
 - Use conventional commit messages: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
-- `main` branch is production - do not push directly without completing work
-- Create feature branches for larger changes, then merge to main
+- Create feature branches for all changes (e.g., `feat/exercise-system`, `fix/timer-bug`)
+- Push feature branch to remote, then create PR to merge into main
 
 ## Project Overview
 A mobile-first React climbing training app ("Climbing Training Planner") built with Vite + TypeScript. The primary goal is to let climbers schedule their training week and immediately see today's workout when opening the app. Secondary features include session tracking, climb logging, and progress monitoring.
