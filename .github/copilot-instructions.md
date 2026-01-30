@@ -6,6 +6,12 @@
 - For complex features, propose an approach first and wait for approval
 - Create separate markdown files in `.github/docs/` if detailed documentation is needed for a feature
 
+## Git Workflow
+- **Commit and push at every milestone** - After completing a feature, fix, or significant change
+- Use conventional commit messages: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+- `main` branch is production - do not push directly without completing work
+- Create feature branches for larger changes, then merge to main
+
 ## Project Overview
 A mobile-first React climbing training app ("Climbing Training Planner") built with Vite + TypeScript. The primary goal is to let climbers schedule their training week and immediately see today's workout when opening the app. Secondary features include session tracking, climb logging, and progress monitoring.
 
@@ -115,10 +121,6 @@ npm run test:e2e:ui # Run E2E with interactive UI
 - Workflow: [.github/workflows/ci.yml](workflows/ci.yml)
 - **Hosting**: Netlify (auto-deploys from `main` branch)
 - **Pre-commit hook**: Runs `npm test` before each commit (husky)
-
-### Git Workflow
-- `main` branch is production - do not push directly
-- Create feature branches for changes, then merge to main
 
 ## File Organization
 - `pages/` - Full-page views (Dashboard, Planner, WorkoutLibrary, SessionTracker, Progress)
