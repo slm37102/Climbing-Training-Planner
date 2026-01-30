@@ -406,12 +406,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString(),
       status: 'active'
     };
-    await setDoc(doc(db, 'users', user.uid, 'goals', id), newGoal);
+    // Remove undefined values for Firestore
+    const cleanGoal = JSON.parse(JSON.stringify(newGoal));
+    await setDoc(doc(db, 'users', user.uid, 'goals', id), cleanGoal);
   };
 
   const updateGoal = async (goal: Goal) => {
     if (!user) return;
-    await setDoc(doc(db, 'users', user.uid, 'goals', goal.id), goal);
+    // Remove undefined values for Firestore
+    const cleanGoal = JSON.parse(JSON.stringify(goal));
+    await setDoc(doc(db, 'users', user.uid, 'goals', goal.id), cleanGoal);
   };
 
   const completeGoal = async (id: string) => {
