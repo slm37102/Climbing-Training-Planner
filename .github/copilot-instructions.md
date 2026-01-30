@@ -129,6 +129,12 @@ npm run test:e2e:ui # Run E2E with interactive UI
 - `context/` - Global state (single store pattern)
 - Root `types.ts` and `utils.ts` for shared code
 
+## Roadmap & Feature Planning
+- **Master roadmap**: [.github/docs/roadmap.md](docs/roadmap.md) - Track all feature status
+- **Feature docs**: Individual markdown files in `.github/docs/` for each planned feature
+- **Before implementing**: Ensure feature is marked ✅ Clarified in roadmap
+- **Workflow**: 🔲 Not Started → ❓ Needs Clarification → ✅ Clarified → 🚧 In Progress → ✅ Completed
+
 ## Feature Roadmap
 
 ### Planner / Calendar
