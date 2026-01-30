@@ -25,6 +25,30 @@ export interface TimerConfig {
   restBetweenSetsSeconds: number;
 }
 
+export interface TimerPreset {
+  id: string;
+  name: string;
+  timerConfig: TimerConfig;
+}
+
+export const DEFAULT_INTERVAL_PRESETS: TimerPreset[] = [
+  {
+    id: 'repeaters-7-3',
+    name: '7/3 Repeaters',
+    timerConfig: { workSeconds: 7, restSeconds: 3, reps: 6, sets: 3, restBetweenSetsSeconds: 180 }
+  },
+  {
+    id: 'max-hangs-10',
+    name: '10s Max Hangs',
+    timerConfig: { workSeconds: 10, restSeconds: 0, reps: 1, sets: 5, restBetweenSetsSeconds: 180 }
+  },
+  {
+    id: 'density-hangs',
+    name: 'Density Hangs',
+    timerConfig: { workSeconds: 30, restSeconds: 30, reps: 6, sets: 1, restBetweenSetsSeconds: 0 }
+  }
+];
+
 export interface Exercise {
   id: string;
   name: string;
