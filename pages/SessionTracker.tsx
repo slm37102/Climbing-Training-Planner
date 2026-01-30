@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
 import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight, Dumbbell, TrendingUp } from 'lucide-react';
-import { grades, cn, generateId } from '../utils';
+import { grades, cn, generateId, playAudioCue, initAudioContext } from '../utils';
 import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise } from '../types';
 
 // State for tracking exercise progress during session
@@ -123,13 +123,19 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       
       if (isTimerRunning && timerTime > 0) {
           interval = setInterval(() => {
-              setTimerTime(prev => prev - 1);
+              setTimerTime(prev => {
+                  // Play countdown beep for last 3 seconds
+                  if (prev <= 4 && prev > 1) {
+                      playAudioCue('countdown');
+                  }
+                  return prev - 1;
+              });
           }, 1000);
       } else if (timerTime === 0 && isTimerRunning) {
           // Timer finished
           if (timerMode === 'rest') {
              setIsTimerRunning(false);
-             if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+             playAudioCue('restComplete');
           } else if (timerMode === 'interval') {
              handleIntervalTransition();
           }
@@ -138,27 +144,30 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   }, [isTimerRunning, timerTime, timerMode]);
 
   const handleIntervalTransition = () => {
-    if ('vibrate' in navigator) navigator.vibrate(200);
-    
     if (intervalPhase === 'Work') {
         if (currentRep < totalReps) {
+             playAudioCue('rest');
              setIntervalPhase('Rest');
              setTimerTime(restDuration);
         } else {
              // Set finished
              if (currentSet < totalSets) {
+                 playAudioCue('setRest');
                  setIntervalPhase('Set Rest');
                  setTimerTime(restBetweenSets);
              } else {
+                 playAudioCue('complete');
                  setIntervalPhase('Done');
                  setIsTimerRunning(false);
              }
         }
     } else if (intervalPhase === 'Rest') {
+        playAudioCue('work');
         setIntervalPhase('Work');
         setTimerTime(workDuration);
         setCurrentRep(prev => prev + 1);
     } else if (intervalPhase === 'Set Rest') {
+        playAudioCue('work');
         setIntervalPhase('Work');
         setTimerTime(workDuration);
         setCurrentRep(1);
@@ -182,7 +191,15 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
     }
   };
 
+  const toggleTimer = () => {
+      if (!isTimerRunning) {
+          initAudioContext(); // Initialize audio on user interaction
+      }
+      setIsTimerRunning(!isTimerRunning);
+  };
+
   const startRestTimer = (seconds: number) => {
+      initAudioContext(); // Initialize audio on user interaction
       setTimerMode('rest');
       setInitialTimerValue(seconds);
       setTimerTime(seconds);
@@ -320,7 +337,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
                           </div>
                       </div>
                       <div className="flex gap-2">
-                         <button onClick={() => setIsTimerRunning(!isTimerRunning)} className="p-4 bg-stone-800 rounded-full border border-stone-600 active:scale-95 transition-transform">
+                         <button onClick={toggleTimer} className="p-4 bg-stone-800 rounded-full border border-stone-600 active:scale-95 transition-transform">
                             {isTimerRunning ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-amber-500 ml-1" />}
                          </button>
                          <button onClick={resetInterval} className="p-4 bg-stone-800 rounded-full border border-stone-600 active:scale-95 transition-transform">
@@ -344,7 +361,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
                          </div>
                      </div>
                  </div>
-                 <button onClick={() => setIsTimerRunning(!isTimerRunning)} className="p-3 bg-stone-800 rounded-full hover:bg-stone-700">
+                 <button onClick={toggleTimer} className="p-3 bg-stone-800 rounded-full hover:bg-stone-700">
                      {isTimerRunning ? <Pause className="w-5 h-5 text-amber-500" /> : <Play className="w-5 h-5 text-stone-300" />}
                  </button>
               </div>

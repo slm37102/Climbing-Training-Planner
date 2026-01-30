@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
 import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X } from 'lucide-react';
-import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise } from '../types';
+import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS } from '../types';
 import { cn } from '../utils';
 
 type TabType = 'workouts' | 'exercises';
@@ -507,6 +507,34 @@ const WorkoutForm: React.FC<WorkoutFormProps> = ({
         
         {hasTimer && (
           <div className="space-y-3 bg-stone-900/50 p-3 rounded-lg">
+            {/* Timer Preset Cards */}
+            <div>
+              <label className="block text-[10px] uppercase text-stone-500 mb-2">Load from Preset</label>
+              <div className="grid grid-cols-3 gap-2">
+                {DEFAULT_INTERVAL_PRESETS.map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setTimerConfig(preset.timerConfig)}
+                    className={cn(
+                      "p-2 rounded-lg border text-left transition-colors",
+                      timerConfig.workSeconds === preset.timerConfig.workSeconds &&
+                      timerConfig.restSeconds === preset.timerConfig.restSeconds &&
+                      timerConfig.reps === preset.timerConfig.reps &&
+                      timerConfig.sets === preset.timerConfig.sets
+                        ? "border-amber-500 bg-amber-500/10"
+                        : "border-stone-700 bg-stone-800 hover:border-stone-600"
+                    )}
+                  >
+                    <div className="text-xs font-medium text-white truncate">{preset.name}</div>
+                    <div className="text-[10px] text-stone-400 mt-0.5">
+                      {preset.timerConfig.workSeconds}/{preset.timerConfig.restSeconds}s • {preset.timerConfig.sets}×{preset.timerConfig.reps}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-[10px] uppercase text-stone-500 mb-1">Work (s)</label>
