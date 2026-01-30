@@ -12,10 +12,21 @@ import {
 import { StatCard } from '../components/stats/StatCard';
 import { CalendarHeatmap } from '../components/stats/CalendarHeatmap';
 import { TimeRangeSelector } from '../components/stats/TimeRangeSelector';
+import { GoalCard } from '../components/goals/GoalCard';
+import { GoalForm } from '../components/goals/GoalForm';
+import { Plus, Target, Archive } from 'lucide-react';
+import { Button } from '../components/ui/Button';
 
 export const Progress: React.FC = () => {
-  const { sessions } = useStore();
+  const { sessions, goals, completeGoal, archiveGoal, deleteGoal } = useStore();
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [showGoalForm, setShowGoalForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  
+  // Filter goals by status
+  const activeGoals = goals.filter(g => g.status === 'active');
+  const completedGoals = goals.filter(g => g.status === 'completed');
+  const archivedGoals = goals.filter(g => g.status === 'archived');
 
   // Current period stats
   const currentRange = useMemo(() => getDateRange(timeRange), [timeRange]);
@@ -37,6 +48,90 @@ export const Progress: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-stone-100">Progress</h1>
         <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+      </div>
+      
+      {/* Goals Section */}
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5 text-amber-500" />
+            <h2 className="font-bold text-stone-200">Goals</h2>
+            {activeGoals.length > 0 && (
+              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                {activeGoals.length} active
+              </span>
+            )}
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => setShowGoalForm(true)}>
+            <Plus className="w-4 h-4" /> Add
+          </Button>
+        </div>
+        
+        {activeGoals.length === 0 && completedGoals.length === 0 ? (
+          <div className="bg-stone-800/50 rounded-xl p-6 text-center border border-stone-700/50">
+            <Target className="w-10 h-10 text-stone-600 mx-auto mb-2" />
+            <p className="text-stone-500 text-sm">No goals yet</p>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="mt-3"
+              onClick={() => setShowGoalForm(true)}
+            >
+              <Plus className="w-4 h-4" /> Set Your First Goal
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Active Goals */}
+            {activeGoals.map(goal => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onComplete={completeGoal}
+                onArchive={archiveGoal}
+                onDelete={deleteGoal}
+              />
+            ))}
+            
+            {/* Recently Completed */}
+            {completedGoals.length > 0 && (
+              <div className="pt-2">
+                <div className="text-xs text-stone-500 mb-2 uppercase tracking-wide">Recently Completed</div>
+                {completedGoals.slice(0, 2).map(goal => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    onComplete={completeGoal}
+                    onArchive={archiveGoal}
+                    onDelete={deleteGoal}
+                    compact
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* Archived Toggle */}
+            {archivedGoals.length > 0 && (
+              <button
+                onClick={() => setShowArchived(!showArchived)}
+                className="flex items-center gap-2 text-xs text-stone-500 hover:text-stone-400"
+              >
+                <Archive className="w-3 h-3" />
+                {showArchived ? 'Hide' : 'Show'} {archivedGoals.length} archived
+              </button>
+            )}
+            
+            {showArchived && archivedGoals.map(goal => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onComplete={completeGoal}
+                onArchive={archiveGoal}
+                onDelete={deleteGoal}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Key Stats Grid */}
@@ -119,6 +214,11 @@ export const Progress: React.FC = () => {
           value={currentStats.avgRpe ?? '-'}
         />
       </div>
+      
+      {/* Goal Form Modal */}
+      {showGoalForm && (
+        <GoalForm onClose={() => setShowGoalForm(false)} />
+      )}
     </div>
   );
 };

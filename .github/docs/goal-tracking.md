@@ -1,7 +1,16 @@
 # Goal Tracking
 
 ## Status: 🔲 Not Started
-## Clarification: ❓ NEEDS DISCUSSION
+## Clarification: ✅ CLARIFIED
+
+## Decisions Made
+| Question | Answer |
+|----------|--------|
+| Goal Types | Grade targets + Strength benchmarks |
+| Deadline Style | User choice per goal (optional deadlines) |
+| Auto-Detection | Fully automatic (mark complete when criteria met) |
+| Progress Visibility | Everywhere (Dashboard, Progress, Session summary) |
+| Goal History | Archive (hidden but viewable in "Past Goals") |
 
 ## Overview
 Allow climbers to set and track goals with deadlines. Display progress toward goals in the Progress/Stats page.

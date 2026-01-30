@@ -129,4 +129,34 @@ export interface UserSettings {
   weightUnit: 'kg' | 'lbs';
 }
 
+// Goal Types
+export type GoalType = 'grade' | 'strength';
+export type GoalStatus = 'active' | 'completed' | 'archived';
+
+export interface GradeTarget {
+  type: 'grade';
+  grade: string;              // "V6", "5.12a"
+  style: 'send' | 'flash' | 'onsight';
+}
+
+export interface StrengthTarget {
+  type: 'strength';
+  exerciseId?: string;        // optional link to exercise
+  metric: 'added_weight' | 'hold_time' | 'edge_depth';
+  targetValue: number;
+  unit: string;               // "kg", "seconds", "mm"
+}
+
+export interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  type: GoalType;
+  target: GradeTarget | StrengthTarget;
+  targetDate?: string;        // ISO date, optional
+  createdAt: string;
+  completedAt?: string;
+  status: GoalStatus;
+}
+
 export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS';

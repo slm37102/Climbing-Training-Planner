@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
-import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight, Dumbbell, TrendingUp } from 'lucide-react';
+import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight, Dumbbell, TrendingUp, Target } from 'lucide-react';
 import { grades, cn, generateId, playAudioCue, initAudioContext } from '../utils';
-import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise } from '../types';
+import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise, GradeTarget, StrengthTarget } from '../types';
 
 // State for tracking exercise progress during session
 interface ExerciseProgress {
@@ -18,9 +18,19 @@ interface ExerciseProgress {
   isExpanded: boolean;
 }
 
+// Track goals completed during this session
+interface GoalAchievement {
+  goalId: string;
+  title: string;
+  type: 'grade' | 'strength';
+}
+
 export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-  const { activeSessionId, sessions, workouts, exercises, settings, startSession, updateSession, endSession } = useStore();
+  const { activeSessionId, sessions, workouts, exercises, goals, settings, startSession, updateSession, endSession, completeGoal } = useStore();
   const [elapsedTime, setElapsedTime] = useState(0);
+  
+  // Goal achievements during session
+  const [achievements, setAchievements] = useState<GoalAchievement[]>([]);
   
   // Standard Rest Timer State
   const [timerMode, setTimerMode] = useState<'none' | 'rest' | 'interval'>('none');
@@ -46,6 +56,12 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
 
   // Exercise tracking state
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([]);
+
+  // Active grade goals for auto-detection
+  const activeGradeGoals = useMemo(() => 
+    goals.filter(g => g.status === 'active' && g.target.type === 'grade'),
+    [goals]
+  );
 
   // Find current session object
   const session = sessions.find(s => s.id === activeSessionId);
@@ -206,8 +222,36 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       setIsTimerRunning(true);
   };
 
+  // Check if a climb completes any active grade goals
+  const checkGradeGoals = (grade: string, sent: boolean, flashAttempt: boolean) => {
+    if (!sent) return;
+    
+    const gradeIndex = grades.indexOf(grade);
+    
+    activeGradeGoals.forEach(goal => {
+      const target = goal.target as GradeTarget;
+      const targetIndex = grades.indexOf(target.grade);
+      
+      // Check if grade meets target
+      if (gradeIndex < targetIndex) return;
+      
+      // Check style requirement
+      if (target.style === 'flash' && !flashAttempt) return;
+      if (target.style === 'onsight' && !flashAttempt) return; // For onsight, we'd need more context
+      
+      // Goal achieved!
+      completeGoal(goal.id);
+      setAchievements(prev => [...prev, { 
+        goalId: goal.id, 
+        title: goal.title, 
+        type: 'grade' 
+      }]);
+    });
+  };
+
   const addClimb = (sent: boolean) => {
       if (!session) return;
+      const isFlash = attempts === 1;
       const newClimb: ClimbLog = {
           id: generateId(),
           grade: selectedGrade,
@@ -216,6 +260,12 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
           timestamp: Date.now()
       };
       updateSession(session.id, { climbs: [newClimb, ...session.climbs] });
+      
+      // Check grade goals for auto-completion
+      if (sent) {
+        checkGradeGoals(selectedGrade, sent, isFlash);
+      }
+      
       setAttempts(1); // Reset attempts
       // Auto start rest timer on log if not in interval mode
       if (timerMode !== 'interval') {
@@ -367,6 +417,25 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
               </div>
           )}
       </div>
+
+      {/* Goal Achievement Toast */}
+      {achievements.length > 0 && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+          <div className="bg-green-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <Target className="w-5 h-5" />
+            <div>
+              <div className="font-bold text-sm">🎉 Goal Achieved!</div>
+              <div className="text-xs text-green-100">{achievements[achievements.length - 1].title}</div>
+            </div>
+            <button 
+              onClick={() => setAchievements([])}
+              className="ml-2 p-1 hover:bg-green-600 rounded"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area - Scrollable */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6">

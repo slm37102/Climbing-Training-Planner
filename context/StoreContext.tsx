@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory } from '../types';
+import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal } from '../types';
 import { generateId, formatDate } from '../utils';
 
 interface StoreContextType {
@@ -18,6 +18,7 @@ interface StoreContextType {
   exercises: Exercise[];
   schedule: ScheduledWorkout[];
   sessions: SessionLog[];
+  goals: Goal[];
   settings: UserSettings;
   activeSessionId: string | null;
   
@@ -30,6 +31,13 @@ interface StoreContextType {
   addExercise: (exercise: Omit<Exercise, 'id'>) => void;
   updateExercise: (exercise: Exercise) => void;
   deleteExercise: (id: string) => void;
+  
+  // Goal Actions
+  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'status'>) => void;
+  updateGoal: (goal: Goal) => void;
+  completeGoal: (id: string) => void;
+  archiveGoal: (id: string) => void;
+  deleteGoal: (id: string) => void;
   
   scheduleWorkout: (date: string, workoutId: string) => void;
   removeScheduledWorkout: (scheduleId: string) => void;
@@ -240,6 +248,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [schedule, setSchedule] = useState<ScheduledWorkout[]>([]);
   const [sessions, setSessions] = useState<SessionLog[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings>({
     defaultGradeSystem: 'V-Scale',
@@ -256,6 +265,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setExercises([]);
       setSchedule([]);
       setSessions([]);
+      setGoals([]);
       setActiveSessionId(null);
       setIsLoaded(false);
       return;
@@ -302,6 +312,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       onSnapshot(query(sessionsRef), (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SessionLog));
         setSessions(data);
+      })
+    );
+
+    // Subscribe to goals
+    const goalsRef = collection(db, 'users', userId, 'goals');
+    unsubscribers.push(
+      onSnapshot(query(goalsRef), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+        setGoals(data);
       })
     );
 
@@ -376,6 +395,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteExercise = async (id: string) => {
     if (!user) return;
     await deleteDoc(doc(db, 'users', user.uid, 'exercises', id));
+  };
+
+  const addGoal = async (goal: Omit<Goal, 'id' | 'createdAt' | 'status'>) => {
+    if (!user) return;
+    const id = generateId();
+    const newGoal: Goal = {
+      ...goal,
+      id,
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+    await setDoc(doc(db, 'users', user.uid, 'goals', id), newGoal);
+  };
+
+  const updateGoal = async (goal: Goal) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid, 'goals', goal.id), goal);
+  };
+
+  const completeGoal = async (id: string) => {
+    if (!user) return;
+    const goal = goals.find(g => g.id === id);
+    if (goal) {
+      await setDoc(doc(db, 'users', user.uid, 'goals', id), {
+        ...goal,
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      });
+    }
+  };
+
+  const archiveGoal = async (id: string) => {
+    if (!user) return;
+    const goal = goals.find(g => g.id === id);
+    if (goal) {
+      await setDoc(doc(db, 'users', user.uid, 'goals', id), {
+        ...goal,
+        status: 'archived'
+      });
+    }
+  };
+
+  const deleteGoal = async (id: string) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'goals', id));
   };
 
   const scheduleWorkout = async (date: string, workoutId: string) => {
@@ -522,6 +586,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       exercises,
       schedule,
       sessions,
+      goals,
       settings,
       activeSessionId,
       addWorkout,
@@ -530,6 +595,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addExercise,
       updateExercise,
       deleteExercise,
+      addGoal,
+      updateGoal,
+      completeGoal,
+      archiveGoal,
+      deleteGoal,
       scheduleWorkout,
       removeScheduledWorkout,
       toggleScheduledWorkout,

@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../utils';
-import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut } from 'lucide-react';
+import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { SessionLog, WorkoutType } from '../types';
+import { GoalCard } from '../components/goals/GoalCard';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const { schedule, workouts, sessions, activeSessionId, startSession, deleteSession, updateSession, toggleScheduledWorkout } = useStore();
+  const { schedule, workouts, sessions, goals, activeSessionId, startSession, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
   const { user, logout } = useAuth();
   const todayStr = formatDate(new Date());
   
@@ -22,6 +23,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   // Find all scheduled workouts for today
   const todayItems = schedule.filter(s => s.date === todayStr);
   const hasWorkouts = todayItems.length > 0;
+  
+  // Active goals (show max 3 on dashboard)
+  const activeGoals = goals.filter(g => g.status === 'active').slice(0, 3);
   
   // Quick stats
   const recentSessions = sessions
@@ -198,6 +202,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           )}
         </div>
       </section>
+
+      {/* Active Goals Section */}
+      {activeGoals.length > 0 && (
+        <section>
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-amber-500" />
+              <h2 className="text-lg font-semibold text-stone-200">Goals</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('PROGRESS')}>
+              See All <ChevronRight className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {activeGoals.map(goal => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onComplete={completeGoal}
+                onArchive={archiveGoal}
+                onDelete={deleteGoal}
+                compact
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Quick Stats Grid */}
       <section className="grid grid-cols-2 gap-4">

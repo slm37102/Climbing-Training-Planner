@@ -24,6 +24,7 @@
 | ✅ Rest Timers | Quick-select rest timers in session | Jan 2026 |
 | ✅ Audio Cues for Timers | Web Audio API beeps for timer transitions | Jan 2026 |
 | ✅ Timer Presets | Pre-loaded hangboard protocols in WorkoutForm | Jan 2026 |
+| ✅ Progress Dashboard | Stats, calendar heatmap, grade profile, time ranges | Jan 2026 |
 
 ---
 
@@ -31,15 +32,14 @@
 
 | # | Feature | Status | Clarified? | Doc |
 |---|---------|--------|------------|-----|
-| 1 | Progress Dashboard | 🔲 | ✅ | [progress-dashboard.md](progress-dashboard.md) |
-| 2 | Goal Tracking | 🔲 | ❓ | [goal-tracking.md](goal-tracking.md) |
-| 3 | Periodization / Weekly Templates | 🔲 | ❓ | [periodization-training.md](periodization-training.md) |
+| 1 | Goal Tracking | 🔲 | ✅ | [goal-tracking.md](goal-tracking.md) |
+| 2 | Periodization / Weekly Templates | 🔲 | ❓ | [periodization-training.md](periodization-training.md) |
 
 ---
 
 ## Clarification Questions
 
-### Progress Dashboard
+### Progress Dashboard ✅ IMPLEMENTED
 - [x] Priority metrics: **Grades Sent, Consistency, Strength Gains**
 - [x] Default view: **Monthly (4-week rolling)**
 - [x] Chart types: **Stacked bars by grade, Line graphs, Calendar heatmap**
@@ -51,15 +51,17 @@
 - [ ] Auto-apply templates or manual?
 - [ ] Mesocycle/phase tracking importance?
 
-### Timer Presets
-- [ ] Number of rest timer presets needed?
-- [ ] Pre-loaded interval presets (7/3 Repeaters, etc.)?
-- [ ] Per-workout rest timer defaults?
+### Timer Presets ✅ IMPLEMENTED
+- [x] Rest timer presets: **Keep current 3** (1m, 2m, 3m)
+- [x] Interval presets: **Pre-loaded + user "Save as preset"**
+- [x] UI: **Preset cards** showing work/rest/sets
 
-### Goal Tracking
-- [ ] Types of goals you set?
-- [ ] Hard deadlines or soft reminders?
-- [ ] Auto-detect goal completion?
+### Goal Tracking ✅ CLARIFIED
+- [x] Goal types: **Grade targets + Strength benchmarks**
+- [x] Deadlines: **User choice per goal** (optional)
+- [x] Auto-detection: **Fully automatic**
+- [x] Visibility: **Dashboard, Progress, Session summary**
+- [x] History: **Archive** (hidden but viewable)
 
 ---
 
