@@ -125,6 +125,24 @@ const SEED_EXERCISES: Exercise[] = [
     defaultSets: 3,
     defaultReps: 15
   },
+  {
+    id: 'e16',
+    name: 'Scapular Pull-ups',
+    description: 'Controlled scapular depression and retraction from a dead hang.',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 10
+  },
+  {
+    id: 'e17',
+    name: 'Prone Y-T-W Raises',
+    description: 'Prone shoulder raises for mid-back and rotator cuff endurance.',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 12
+  },
   // Core Training
   {
     id: 'e4',
@@ -152,6 +170,15 @@ const SEED_EXERCISES: Exercise[] = [
     difficulty: 'Beginner',
     defaultSets: 3,
     defaultDurationSeconds: 30
+  },
+  {
+    id: 'e18',
+    name: 'Dead Bugs',
+    description: 'Alternating arm/leg extensions while keeping the lower back flat.',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Beginner',
+    defaultSets: 3,
+    defaultReps: 12
   },
   // Limit-Strength
   {
