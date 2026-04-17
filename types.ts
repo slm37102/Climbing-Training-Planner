@@ -87,9 +87,15 @@ export interface ScheduledWorkout {
   completed: boolean;
 }
 
+import type { GradeSystem } from './utils/grades';
+
 export interface ClimbLog {
   id: string;
   grade: string;
+  // Grade system this climb was logged in. When omitted, consumers should
+  // assume the user's current defaultGradeSystem (view-time default).
+  // We intentionally do NOT backfill this field on existing logs.
+  gradeSystem?: GradeSystem;
   attempts: number;
   sent: boolean;
   timestamp: number;
@@ -124,7 +130,7 @@ export interface SessionLog {
 }
 
 export interface UserSettings {
-  defaultGradeSystem: 'V-Scale' | 'Font';
+  defaultGradeSystem: GradeSystem;
   startOfWeek: 'Monday' | 'Sunday';
   weightUnit: 'kg' | 'lbs';
 }
@@ -159,7 +165,7 @@ export interface Goal {
   status: GoalStatus;
 }
 
-export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS' | 'HANGBOARD_PICKER';
+export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS' | 'HANGBOARD_PICKER' | 'SETTINGS';
 
 // Hangboard Protocol — a science-backed interval prescription that can be
 // turned into a concrete Workout. See data/hangboardProtocols.ts for the seed
@@ -188,4 +194,3 @@ export interface HangboardProtocol {
   /** Optional extra load hint like "80–100% MVC" or "30–70% BW". */
   loadHint?: string;
 }
-

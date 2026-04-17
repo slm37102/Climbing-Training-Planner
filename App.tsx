@@ -7,6 +7,7 @@ import { Planner } from './pages/Planner';
 import { WorkoutLibrary } from './pages/WorkoutLibrary';
 import { SessionTracker } from './pages/SessionTracker';
 import { Progress } from './pages/Progress';
+import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
 import { HangboardPicker } from './pages/HangboardPicker';
 import { AppView } from './types';
@@ -43,6 +44,8 @@ const AppContent: React.FC = () => {
         return <Progress />;
       case 'HANGBOARD_PICKER':
         return <HangboardPicker onNavigate={setCurrentView} />;
+      case 'SETTINGS':
+        return <Settings onBack={() => setCurrentView('DASHBOARD')} />;
       default:
         return <Dashboard onNavigate={setCurrentView} />;
     }

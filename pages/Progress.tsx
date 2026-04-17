@@ -21,7 +21,7 @@ import { Button } from '../components/ui/Button';
 import { computeDailyLoads } from '../utils/load';
 
 export const Progress: React.FC = () => {
-  const { sessions, goals, completeGoal, archiveGoal, deleteGoal } = useStore();
+  const { sessions, goals, settings, completeGoal, archiveGoal, deleteGoal } = useStore();
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -33,11 +33,17 @@ export const Progress: React.FC = () => {
 
   // Current period stats
   const currentRange = useMemo(() => getDateRange(timeRange), [timeRange]);
-  const currentStats = useMemo(() => getProgressStats(sessions, currentRange), [sessions, currentRange]);
+  const currentStats = useMemo(
+    () => getProgressStats(sessions, currentRange, settings.defaultGradeSystem),
+    [sessions, currentRange, settings.defaultGradeSystem]
+  );
   
   // Previous period stats for comparison
   const previousRange = useMemo(() => getPreviousRange(timeRange), [timeRange]);
-  const previousStats = useMemo(() => getProgressStats(sessions, previousRange), [sessions, previousRange]);
+  const previousStats = useMemo(
+    () => getProgressStats(sessions, previousRange, settings.defaultGradeSystem),
+    [sessions, previousRange, settings.defaultGradeSystem]
+  );
   
   // Comparisons
   const sessionsChange = getComparisonChange(currentStats.totalSessions, previousStats.totalSessions);
