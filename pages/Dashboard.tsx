@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate, compareGrades } from '../utils';
@@ -6,6 +6,8 @@ import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save
 import { Button } from '../components/ui/Button';
 import { SessionLog, WorkoutType } from '../types';
 import { GoalCard } from '../components/goals/GoalCard';
+import { DeloadBanner } from '../components/DeloadBanner';
+import { computeDailyLoads, shouldShowDeloadBanner } from '../utils/load';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
@@ -51,6 +53,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       return diff < 2;
   });
   const shouldRest = last2DaysSessions.length >= 2 || last2DaysSessions.some(s => s.rpe >= 8);
+
+  // Training load / ACWR safety banner (issue #13). Never gated — this is
+  // an injury-risk heuristic, not a premium feature.
+  const dailyLoads = useMemo(
+    () => computeDailyLoads(
+      sessions.map(s => ({ rpe: s.rpe, durationMinutes: s.durationMinutes, date: s.date }))
+    ),
+    [sessions]
+  );
+  const showDeload = useMemo(
+    () => shouldShowDeloadBanner(dailyLoads, todayStr),
+    [dailyLoads, todayStr]
+  );
+  const [loadToast, setLoadToast] = useState<string | null>(null);
+  const handleSwapTomorrow = () => {
+    setLoadToast("Consider replacing tomorrow's workout with a skill session");
+    setTimeout(() => {
+      setLoadToast(null);
+      onNavigate('PLANNER');
+    }, 1200);
+  };
 
   const handleStartWorkout = (workoutId: string) => {
      startSession(workoutId);
@@ -105,6 +128,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <LogOut className="w-5 h-5 hidden group-hover:block" />
         </button>
       </header>
+
+      {/* Training-load deload banner (issue #13) */}
+      {showDeload && (
+        <DeloadBanner
+          daily={dailyLoads}
+          onDate={todayStr}
+          onSwapTomorrow={handleSwapTomorrow}
+        />
+      )}
+      {loadToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-stone-900 border border-amber-500 text-amber-200 text-xs px-4 py-2 rounded-full shadow-lg z-50"
+        >
+          {loadToast}
+        </div>
+      )}
 
       {/* Recovery Alert */}
       {shouldRest && (

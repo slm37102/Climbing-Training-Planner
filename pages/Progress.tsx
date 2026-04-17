@@ -7,15 +7,18 @@ import {
   getDateRange, 
   getPreviousRange, 
   getProgressStats, 
-  getComparisonChange 
+  getComparisonChange,
+  formatDate,
 } from '../utils';
 import { StatCard } from '../components/stats/StatCard';
 import { CalendarHeatmap } from '../components/stats/CalendarHeatmap';
 import { TimeRangeSelector } from '../components/stats/TimeRangeSelector';
+import { LoadChart } from '../components/stats/LoadChart';
 import { GoalCard } from '../components/goals/GoalCard';
 import { GoalForm } from '../components/goals/GoalForm';
 import { Plus, Target, Archive } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { computeDailyLoads } from '../utils/load';
 
 export const Progress: React.FC = () => {
   const { sessions, goals, completeGoal, archiveGoal, deleteGoal } = useStore();
@@ -41,6 +44,14 @@ export const Progress: React.FC = () => {
   const sendsChange = getComparisonChange(currentStats.totalSends, previousStats.totalSends);
 
   const hasGradeData = currentStats.gradeDistribution.length > 0;
+
+  const todayStr = formatDate(new Date());
+  const dailyLoads = useMemo(
+    () => computeDailyLoads(
+      sessions.map(s => ({ rpe: s.rpe, durationMinutes: s.durationMinutes, date: s.date }))
+    ),
+    [sessions]
+  );
 
   return (
     <div className="pb-20 space-y-6">
@@ -202,6 +213,9 @@ export const Progress: React.FC = () => {
 
       {/* Calendar Heatmap */}
       <CalendarHeatmap range={timeRange} trainingDays={currentStats.trainingDays} />
+
+      {/* Training Load / ACWR */}
+      <LoadChart daily={dailyLoads} onDate={todayStr} />
 
       {/* Additional Stats */}
       <div className="grid grid-cols-2 gap-3">
