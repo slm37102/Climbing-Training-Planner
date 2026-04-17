@@ -1,13 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
-import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X } from 'lucide-react';
-import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS } from '../types';
+import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X, Sparkles } from 'lucide-react';
+import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS, AppView } from '../types';
 import { cn } from '../utils';
 
 type TabType = 'workouts' | 'exercises';
 
-export const WorkoutLibrary: React.FC = () => {
+interface WorkoutLibraryProps {
+  onNavigate?: (view: AppView) => void;
+}
+
+export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) => {
   const { workouts, exercises, addWorkout, updateWorkout, deleteWorkout, addExercise, updateExercise, deleteExercise } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>('workouts');
   const [searchQuery, setSearchQuery] = useState('');
@@ -227,6 +231,23 @@ export const WorkoutLibrary: React.FC = () => {
         <>
           {!isCreatingWorkout ? (
             <>
+              {onNavigate && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('HANGBOARD_PICKER')}
+                  className="w-full text-left bg-gradient-to-r from-amber-500/10 to-stone-800 border border-amber-500/40 rounded-xl p-3 flex items-center gap-3 hover:border-amber-500 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-stone-100">Pick a hangboard protocol</p>
+                    <p className="text-xs text-stone-400">
+                      Prefill a workout from a science-backed template
+                    </p>
+                  </div>
+                </button>
+              )}
               <Button onClick={() => setIsCreatingWorkout(true)} size="sm" className="w-full">
                 <Plus className="w-4 h-4 mr-1" /> New Workout
               </Button>

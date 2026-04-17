@@ -159,4 +159,33 @@ export interface Goal {
   status: GoalStatus;
 }
 
-export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS';
+export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS' | 'HANGBOARD_PICKER';
+
+// Hangboard Protocol — a science-backed interval prescription that can be
+// turned into a concrete Workout. See data/hangboardProtocols.ts for the seed
+// catalog. A future PR may migrate this to a global Firestore collection so
+// updates ship to all users without an app release.
+export type HangboardPillar = 'MaxStrength' | 'Endurance' | 'Frequency';
+export type HangboardLoadPrescription = 'addedWeight' | 'minEdge' | 'bodyweight';
+
+export interface HangboardProtocol {
+  id: string;
+  name: string;                           // "MaxHangs 10s"
+  aka?: string[];                         // ["Max Hangs", "Lopez Max"]
+  pillar: HangboardPillar;
+  edgeRecommendation: { mm: number[]; prefer: number };
+  loadPrescription: HangboardLoadPrescription;
+  work: number;                           // seconds per rep
+  rest: number;                           // seconds between reps
+  reps: number;
+  sets: number;
+  restBetweenSets: number;                // seconds
+  frequencyPerWeek: number;
+  source: { title: string; author: string; url?: string };
+  contraindications?: string[];
+  /** One-line rationale surfaced in the "Why this protocol?" tooltip. */
+  rationale?: string;
+  /** Optional extra load hint like "80–100% MVC" or "30–70% BW". */
+  loadHint?: string;
+}
+
