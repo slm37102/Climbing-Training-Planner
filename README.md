@@ -57,6 +57,26 @@ Then open the URL printed in the terminal (typically `http://localhost:5173`).
 - `context/` — app state, authentication, and data providers
 - `utils.ts` — helper utilities for stats and calculations
 
-## Notes
+## Configuration
 
-Firebase configuration is defined in `firebase.ts`. If you plan to point the app at your own Firebase project, update that file with your project settings.
+Firebase credentials are read from Vite environment variables (`import.meta.env.VITE_FIREBASE_*`). To set up a local environment:
+
+```bash
+cp .env.example .env.local
+```
+
+Then fill in the values from your Firebase console (**Project settings → General → Your apps → SDK setup and configuration**):
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID` *(optional)*
+
+`.env.local` is gitignored. The app will throw a clear startup error if any required var is missing.
+
+### CI / Deployments
+
+CI builds and deployments need the same `VITE_FIREBASE_*` variables — either add them as GitHub Actions / Netlify secrets, or use per-environment Firebase projects (recommended to separate dev and prod data).
