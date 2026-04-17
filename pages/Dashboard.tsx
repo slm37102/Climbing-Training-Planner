@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDate } from '../utils';
+import { formatDate, compareGrades } from '../utils';
 import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { SessionLog, WorkoutType } from '../types';
@@ -40,7 +40,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     .filter(s => (Date.now() - new Date(s.date).getTime()) < 7 * 24 * 3600 * 1000)
     .reduce((best, session) => {
       session.climbs.forEach(c => {
-        if (c.sent && c.grade > best) best = c.grade;
+        if (c.sent && compareGrades(c.grade, best) > 0) best = c.grade;
       });
       return best;
     }, 'V0');
@@ -238,7 +238,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
         <div className="bg-stone-800 p-4 rounded-xl border border-stone-700">
           <div className="text-stone-400 text-xs mb-1 uppercase tracking-wider">Top Grade (7d)</div>
-          <div className="text-2xl font-bold text-amber-500">{bestGradeThisWeek > 'V0' ? bestGradeThisWeek : '-'}</div>
+          <div className="text-2xl font-bold text-amber-500">{compareGrades(bestGradeThisWeek, 'V0') > 0 ? bestGradeThisWeek : '-'}</div>
         </div>
       </section>
 
