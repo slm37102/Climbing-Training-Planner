@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight, Dumbbell, TrendingUp, Target } from 'lucide-react';
 import { grades, cn, generateId, playAudioCue, initAudioContext } from '../utils';
 import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise, GradeTarget, StrengthTarget } from '../types';
+import { convertGrade, gradeRank, listGrades, GRADE_SYSTEMS, GradeSystem } from '../utils/grades';
 
 // State for tracking exercise progress during session
 interface ExerciseProgress {
@@ -49,7 +50,13 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   const [restBetweenSets, setRestBetweenSets] = useState(120);
   
   // Logging state
-  const [selectedGrade, setSelectedGrade] = useState('V3');
+  const userSystem: GradeSystem = settings.defaultGradeSystem;
+  const [selectedSystem, setSelectedSystem] = useState<GradeSystem>(userSystem);
+  const gradeList = useMemo(() => listGrades(selectedSystem), [selectedSystem]);
+  const [selectedGrade, setSelectedGrade] = useState<string>(() => {
+    const list = listGrades(userSystem);
+    return list[3] || list[0];
+  });
   const [attempts, setAttempts] = useState(1);
   const [rpe, setRpe] = useState(5);
   const [notes, setNotes] = useState('');
@@ -222,29 +229,31 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       setIsTimerRunning(true);
   };
 
-  // Check if a climb completes any active grade goals
-  const checkGradeGoals = (grade: string, sent: boolean, flashAttempt: boolean) => {
+  // Check if a climb completes any active grade goals.
+  // Goals store grades in V-scale; we compare by canonical rank so logs in
+  // any system can trigger them.
+  const checkGradeGoals = (grade: string, system: GradeSystem, sent: boolean, flashAttempt: boolean) => {
     if (!sent) return;
-    
-    const gradeIndex = grades.indexOf(grade);
-    
+
+    const climbRank = gradeRank(grade, system);
+    if (climbRank < 0) return;
+
     activeGradeGoals.forEach(goal => {
       const target = goal.target as GradeTarget;
-      const targetIndex = grades.indexOf(target.grade);
-      
-      // Check if grade meets target
-      if (gradeIndex < targetIndex) return;
-      
-      // Check style requirement
+      // Goal grades assumed V-scale today (existing behaviour).
+      const targetRank = gradeRank(target.grade, 'V');
+      if (targetRank < 0) return;
+
+      if (climbRank < targetRank) return;
+
       if (target.style === 'flash' && !flashAttempt) return;
-      if (target.style === 'onsight' && !flashAttempt) return; // For onsight, we'd need more context
-      
-      // Goal achieved!
+      if (target.style === 'onsight' && !flashAttempt) return;
+
       completeGoal(goal.id);
-      setAchievements(prev => [...prev, { 
-        goalId: goal.id, 
-        title: goal.title, 
-        type: 'grade' 
+      setAchievements(prev => [...prev, {
+        goalId: goal.id,
+        title: goal.title,
+        type: 'grade'
       }]);
     });
   };
@@ -255,15 +264,16 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       const newClimb: ClimbLog = {
           id: generateId(),
           grade: selectedGrade,
+          gradeSystem: selectedSystem,
           attempts: attempts,
           sent,
           timestamp: Date.now()
       };
       updateSession(session.id, { climbs: [newClimb, ...session.climbs] });
-      
+
       // Check grade goals for auto-completion
       if (sent) {
-        checkGradeGoals(selectedGrade, sent, isFlash);
+        checkGradeGoals(selectedGrade, selectedSystem, true, isFlash);
       }
       
       setAttempts(1); // Reset attempts
@@ -624,18 +634,40 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
           {/* Climb Logger - Conditionally Rendered */}
           {showClimbLogging && (
             <div className="bg-stone-800 p-4 rounded-xl border border-stone-700">
-                <h3 className="text-sm font-bold text-stone-300 mb-3 uppercase tracking-wide">Log Climb</h3>
-                
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-stone-300 uppercase tracking-wide">Log Climb</h3>
+                  <label className="text-xs text-stone-500 flex items-center gap-1">
+                    Logged in
+                    <select
+                      value={selectedSystem}
+                      onChange={e => {
+                        const next = e.target.value as GradeSystem;
+                        // Preserve difficulty by converting current selected grade across systems.
+                        const converted = convertGrade(selectedGrade, selectedSystem, next);
+                        setSelectedSystem(next);
+                        if (converted) setSelectedGrade(converted);
+                        else setSelectedGrade(listGrades(next)[3] || listGrades(next)[0]);
+                      }}
+                      className="bg-stone-700 text-stone-100 rounded px-1.5 py-0.5 text-xs border border-stone-600"
+                      aria-label="Grade system for this climb"
+                    >
+                      {GRADE_SYSTEMS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
                        <button onClick={() => {
-                           const idx = grades.indexOf(selectedGrade);
-                           if(idx > 0) setSelectedGrade(grades[idx-1]);
+                           const idx = gradeList.indexOf(selectedGrade);
+                           if(idx > 0) setSelectedGrade(gradeList[idx-1]);
                        }} className="w-10 h-10 rounded-lg bg-stone-700 flex items-center justify-center text-xl font-bold hover:bg-stone-600">-</button>
-                       <div className="w-16 text-center text-3xl font-bold text-amber-500">{selectedGrade}</div>
+                       <div className="w-20 text-center text-3xl font-bold text-amber-500">{selectedGrade}</div>
                        <button onClick={() => {
-                           const idx = grades.indexOf(selectedGrade);
-                           if(idx < grades.length-1) setSelectedGrade(grades[idx+1]);
+                           const idx = gradeList.indexOf(selectedGrade);
+                           if(idx < gradeList.length-1) setSelectedGrade(gradeList[idx+1]);
                        }} className="w-10 h-10 rounded-lg bg-stone-700 flex items-center justify-center text-xl font-bold hover:bg-stone-600">+</button>
                     </div>
                     
@@ -665,11 +697,21 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
             <div className="space-y-2">
                 <h3 className="text-sm font-bold text-stone-500 uppercase tracking-wide">Session Log</h3>
                 {session.climbs.length === 0 && <p className="text-stone-600 text-sm italic">No climbs logged yet.</p>}
-                {session.climbs.map(climb => (
+                {session.climbs.some(c => (c.gradeSystem as GradeSystem | undefined) && c.gradeSystem !== userSystem) && (
+                  <p className="text-[10px] text-stone-600 italic">Conversions are approximate.</p>
+                )}
+                {session.climbs.map(climb => {
+                    const climbSys: GradeSystem = (climb.gradeSystem as GradeSystem) || userSystem;
+                    const showBoth = climbSys !== userSystem;
+                    const converted = showBoth ? convertGrade(climb.grade, climbSys, userSystem) : null;
+                    return (
                     <div key={climb.id} className="flex justify-between items-center bg-stone-900 p-3 rounded-lg border border-stone-800">
                         <div className="flex items-center gap-3">
-                            <span className={cn("font-bold w-8 text-center", climb.sent ? "text-green-500" : "text-red-500")}>
+                            <span className={cn("font-bold text-center", climb.sent ? "text-green-500" : "text-red-500")}>
                                 {climb.grade}
+                                {showBoth && converted && (
+                                  <span className="text-stone-500 font-normal text-xs ml-1">({converted})</span>
+                                )}
                             </span>
                             <span className="text-stone-400 text-sm">{climb.attempts} attempt{climb.attempts > 1 ? 's' : ''}</span>
                         </div>
@@ -677,7 +719,8 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
                             {new Date(climb.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </span>
                     </div>
-                ))}
+                    );
+                })}
             </div>
           )}
 

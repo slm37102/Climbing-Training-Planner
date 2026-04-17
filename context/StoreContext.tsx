@@ -50,6 +50,7 @@ interface StoreContextType {
   deleteSession: (id: string) => void;
   
   resetData: () => void;
+  updateSettings: (updates: Partial<UserSettings>) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -278,7 +279,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [goals, setGoals] = useState<Goal[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings>({
-    defaultGradeSystem: 'V-Scale',
+    defaultGradeSystem: 'V',
     startOfWeek: 'Monday',
     weightUnit: 'kg'
   });
@@ -361,7 +362,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setActiveSessionId(data.activeSessionId);
           }
           if (data.settings) {
-            setSettings(data.settings);
+            // Migrate legacy 'V-Scale' value to new 'V' GradeSystem code.
+            const raw = data.settings as UserSettings & { defaultGradeSystem: string };
+            const migrated: UserSettings = {
+              ...raw,
+              defaultGradeSystem:
+                (raw.defaultGradeSystem as string) === 'V-Scale'
+                  ? 'V'
+                  : (raw.defaultGradeSystem as UserSettings['defaultGradeSystem']) || 'V',
+            };
+            setSettings(migrated);
           }
         }
         setIsLoaded(true);
@@ -386,7 +396,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
     // Also create settings doc
     const settingsRef = doc(db, 'users', userId, 'meta', 'settings');
-    batch.set(settingsRef, { activeSessionId: null, settings: { defaultGradeSystem: 'V-Scale', startOfWeek: 'Monday', weightUnit: 'kg' } });
+    batch.set(settingsRef, { activeSessionId: null, settings: { defaultGradeSystem: 'V', startOfWeek: 'Monday', weightUnit: 'kg' } });
     await batch.commit();
   };
 
@@ -599,6 +609,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateSettings = async (updates: Partial<UserSettings>) => {
+    if (!user) return;
+    const next = { ...settings, ...updates };
+    setSettings(next);
+    await setDoc(
+      doc(db, 'users', user.uid, 'meta', 'settings'),
+      { settings: next },
+      { merge: true }
+    );
+  };
+
   const resetData = async () => {
     if (!user) return;
     // Delete all user data and reseed
@@ -639,7 +660,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateSession,
       endSession,
       deleteSession,
-      resetData
+      resetData,
+      updateSettings
     }}>
       {children}
     </StoreContext.Provider>

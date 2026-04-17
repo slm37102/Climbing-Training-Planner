@@ -56,6 +56,7 @@ export const rpeDescriptions = [
 
 // Progress Stats Types and Utilities
 import { SessionLog } from './types';
+import { convertGrade, gradeRank, listGrades, GradeSystem } from './utils/grades';
 
 export type TimeRange = 'week' | 'month' | 'quarter';
 
@@ -111,50 +112,59 @@ export const isInRange = (dateStr: string, range: DateRange): boolean => {
   return date >= range.start && date <= range.end;
 };
 
-export const getProgressStats = (sessions: SessionLog[], range: DateRange): ProgressStats => {
+export const getProgressStats = (
+  sessions: SessionLog[],
+  range: DateRange,
+  preferredSystem: GradeSystem = 'V'
+): ProgressStats => {
   const filtered = sessions.filter(s => isInRange(s.date, range));
-  
+
   const totalClimbs = filtered.reduce((sum, s) => sum + s.climbs.length, 0);
   const totalSends = filtered.reduce((sum, s) => sum + s.climbs.filter(c => c.sent).length, 0);
-  
-  // Grade distribution
+
+  // Grade distribution, normalised to preferredSystem
   const gradeCounts: Record<string, number> = {};
   filtered.forEach(s => {
     s.climbs.forEach(c => {
-      if (c.sent) {
-        gradeCounts[c.grade] = (gradeCounts[c.grade] || 0) + 1;
-      }
+      if (!c.sent) return;
+      const sys = (c.gradeSystem as GradeSystem) || preferredSystem;
+      const display =
+        sys === preferredSystem ? c.grade : (convertGrade(c.grade, sys, preferredSystem) || c.grade);
+      gradeCounts[display] = (gradeCounts[display] || 0) + 1;
     });
   });
-  
-  const gradeDistribution = grades
+
+  const prefGrades = listGrades(preferredSystem);
+  const gradeDistribution = prefGrades
     .map(g => ({ grade: g, count: gradeCounts[g] || 0 }))
     .filter(d => d.count > 0);
-  
-  // Highest grade
+
+  // Highest grade (by rank) in preferred system
   let highestGrade: string | null = null;
-  for (let i = grades.length - 1; i >= 0; i--) {
-    if (gradeCounts[grades[i]]) {
-      highestGrade = grades[i];
-      break;
+  let highestRank = -1;
+  Object.keys(gradeCounts).forEach(g => {
+    const r = gradeRank(g, preferredSystem);
+    if (r > highestRank) {
+      highestRank = r;
+      highestGrade = g;
     }
-  }
-  
+  });
+
   // Average RPE
   const rpeValues = filtered.map(s => s.rpe).filter(r => r > 0);
-  const avgRpe = rpeValues.length > 0 
-    ? Math.round(rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length * 10) / 10 
+  const avgRpe = rpeValues.length > 0
+    ? Math.round(rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length * 10) / 10
     : null;
-  
+
   // Average duration
   const durations = filtered.map(s => s.durationMinutes).filter(d => d > 0);
   const avgDuration = durations.length > 0
     ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
     : null;
-  
+
   // Training days (for heatmap)
   const trainingDays = new Set(filtered.map(s => s.date.split('T')[0]));
-  
+
   return {
     totalSessions: filtered.length,
     totalClimbs,

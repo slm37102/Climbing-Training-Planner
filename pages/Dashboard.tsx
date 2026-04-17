@@ -2,19 +2,20 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate, compareGrades } from '../utils';
-import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight } from 'lucide-react';
+import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { SessionLog, WorkoutType } from '../types';
 import { GoalCard } from '../components/goals/GoalCard';
 import { DeloadBanner } from '../components/DeloadBanner';
 import { computeDailyLoads, shouldShowDeloadBanner } from '../utils/load';
+import { convertGrade, gradeRank, GradeSystem } from '../utils/grades';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const { schedule, workouts, sessions, goals, activeSessionId, startSession, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
+  const { schedule, workouts, sessions, goals, activeSessionId, settings, startSession, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
   const { user, logout } = useAuth();
   const todayStr = formatDate(new Date());
   
@@ -38,14 +39,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     })
     .sort((a, b) => b.startTime - a.startTime); // Newest first
 
-  const bestGradeThisWeek = sessions
+  const userSystem = settings.defaultGradeSystem;
+
+  // Compute best grade this week in user's preferred system.
+  let bestGradeThisWeek: string | null = null;
+  let bestRank = -1;
+  sessions
     .filter(s => (Date.now() - new Date(s.date).getTime()) < 7 * 24 * 3600 * 1000)
-    .reduce((best, session) => {
+    .forEach(session => {
       session.climbs.forEach(c => {
-        if (c.sent && compareGrades(c.grade, best) > 0) best = c.grade;
+        if (!c.sent) return;
+        const sys: GradeSystem = (c.gradeSystem as GradeSystem) || userSystem;
+        const r = gradeRank(c.grade, sys);
+        if (r > bestRank) {
+          bestRank = r;
+          bestGradeThisWeek = sys === userSystem ? c.grade : (convertGrade(c.grade, sys, userSystem) || c.grade);
+        }
       });
-      return best;
-    }, 'V0');
+    });
 
   const last2DaysSessions = sessions.filter(s => {
       const d = new Date(s.date);
@@ -117,16 +128,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           <h1 className="text-2xl font-bold text-stone-100">Welcome Back</h1>
           <p className="text-stone-400 text-sm">Let's crush some plastic today.</p>
         </div>
-        <button 
-          onClick={logout}
-          className="h-10 w-10 bg-amber-500 rounded-full flex items-center justify-center text-stone-900 font-bold hover:bg-amber-400 transition-colors group relative"
-          title="Logout"
-        >
-          <span className="group-hover:hidden">
-            {user?.email?.charAt(0).toUpperCase() || 'U'}
-          </span>
-          <LogOut className="w-5 h-5 hidden group-hover:block" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onNavigate('SETTINGS')}
+            className="h-10 w-10 bg-stone-800 rounded-full flex items-center justify-center text-stone-300 hover:bg-stone-700 transition-colors"
+            title="Settings"
+            aria-label="Settings"
+          >
+            <SettingsIcon className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={logout}
+            className="h-10 w-10 bg-amber-500 rounded-full flex items-center justify-center text-stone-900 font-bold hover:bg-amber-400 transition-colors group relative"
+            title="Logout"
+          >
+            <span className="group-hover:hidden">
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </span>
+            <LogOut className="w-5 h-5 hidden group-hover:block" />
+          </button>
+        </div>
       </header>
 
       {/* Training-load deload banner (issue #13) */}
@@ -279,7 +300,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
         <div className="bg-stone-800 p-4 rounded-xl border border-stone-700">
           <div className="text-stone-400 text-xs mb-1 uppercase tracking-wider">Top Grade (7d)</div>
-          <div className="text-2xl font-bold text-amber-500">{compareGrades(bestGradeThisWeek, 'V0') > 0 ? bestGradeThisWeek : '-'}</div>
+          <div className="text-2xl font-bold text-amber-500">{bestGradeThisWeek || '-'}</div>
         </div>
       </section>
 
