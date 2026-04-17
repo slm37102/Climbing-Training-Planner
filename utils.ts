@@ -5,7 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const generateId = () => Math.random().toString(36).substring(2, 9);
+export const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (e.g., legacy iOS Safari) lacking crypto.randomUUID.
+  // Concatenate two random chunks for a ~20-char id to reduce collision risk.
+  const chunk = () => Math.random().toString(36).substring(2, 12);
+  return chunk() + chunk();
+};
 
 export const formatDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
@@ -22,8 +30,23 @@ export const getDayNumber = (dateStr: string): number => {
 };
 
 export const grades = [
-  'VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10'
+  'VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9',
+  'V10', 'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17'
 ];
+
+// Canonical V-scale ordering. Use this instead of lexicographic string
+// comparison, which incorrectly orders e.g. 'V10' < 'V9'.
+export const GRADES = grades;
+
+export const compareGrades = (a: string, b: string): number => {
+  const ai = grades.indexOf(a);
+  const bi = grades.indexOf(b);
+  // Unknown grades sort last, preserving relative order among themselves.
+  const av = ai === -1 ? Number.POSITIVE_INFINITY : ai;
+  const bv = bi === -1 ? Number.POSITIVE_INFINITY : bi;
+  if (av === bv) return 0;
+  return av < bv ? -1 : 1;
+};
 
 export const rpeDescriptions = [
   '1 - Effortless', '2 - Very Easy', '3 - Easy', '4 - Moderate',
