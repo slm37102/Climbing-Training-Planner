@@ -57,6 +57,26 @@ Then open the URL printed in the terminal (typically `http://localhost:5173`).
 - `context/` — app state, authentication, and data providers
 - `utils.ts` — helper utilities for stats and calculations
 
+## Firestore security
+
+All user data lives under `users/{uid}/...` (workouts, schedule, sessions, `meta/settings`). Access is locked down in [`firestore.rules`](./firestore.rules): a deny-all baseline plus an explicit allow that requires `request.auth.uid == uid`. These rules **must** be deployed before any production use — without them any authenticated user could read or write another user's data.
+
+Install the Firebase CLI and deploy the rules:
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase deploy --only firestore:rules
+```
+
+`firebase.json` wires `firestore.rules` and `firestore.indexes.json` so the deploy command picks them up automatically.
+
+For local testing you can run the Firestore emulator instead of hitting your real project:
+
+```bash
+firebase emulators:start --only firestore
+```
+
 ## Configuration
 
 Firebase credentials are read from Vite environment variables (`import.meta.env.VITE_FIREBASE_*`). To set up a local environment:
