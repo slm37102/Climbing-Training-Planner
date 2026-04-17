@@ -8,6 +8,7 @@ import { WorkoutLibrary } from './pages/WorkoutLibrary';
 import { SessionTracker } from './pages/SessionTracker';
 import { Progress } from './pages/Progress';
 import { Login } from './pages/Login';
+import { HangboardPicker } from './pages/HangboardPicker';
 import { AppView } from './types';
 
 const AppContent: React.FC = () => {
@@ -35,11 +36,13 @@ const AppContent: React.FC = () => {
       case 'PLANNER':
         return <Planner />;
       case 'WORKOUTS':
-        return <WorkoutLibrary />;
+        return <WorkoutLibrary onNavigate={setCurrentView} />;
       case 'SESSION':
         return <SessionTracker onComplete={() => setCurrentView('DASHBOARD')} />;
       case 'PROGRESS':
         return <Progress />;
+      case 'HANGBOARD_PICKER':
+        return <HangboardPicker onNavigate={setCurrentView} />;
       default:
         return <Dashboard onNavigate={setCurrentView} />;
     }
