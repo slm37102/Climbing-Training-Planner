@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// Firestore security rules for Climbing Training Planner.
+// Baseline: deny all. Only the owner of a user document (request.auth.uid == uid)
+// may read or write anything under /users/{uid}/**. This covers the app's
+// subcollections: workouts, schedule, sessions, and meta/settings.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
