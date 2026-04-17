@@ -100,9 +100,14 @@ addWorkout({
 
 ```bash
 npm install        # Install dependencies
-npm run dev        # Start dev server at localhost:3000
+npm run dev        # Start dev server at localhost:3000 (configured in vite.config.ts, not default 5173)
 npm run build      # Production build
+npx tsc --noEmit   # Type-check only (same as CI lint job); no separate lint script exists
 ```
+
+### Vite config notes
+- Path alias `@` resolves to the repo root (see [vite.config.ts](../vite.config.ts)).
+- `GEMINI_API_KEY` from env is injected as both `process.env.API_KEY` and `process.env.GEMINI_API_KEY` at build time.
 
 ### Testing
 - **Vitest** + **React Testing Library** for unit and component tests
@@ -110,11 +115,14 @@ npm run build      # Production build
 - Tests in `test/` directory, E2E in `e2e/` directory
 - Firebase mocked in [test/setup.ts](../test/setup.ts)
 ```bash
-npm test           # Run all tests once
-npm run test:watch # Watch mode for development
-npm run test:coverage # Run with coverage report
-npm run test:e2e   # Run Playwright E2E tests
-npm run test:e2e:ui # Run E2E with interactive UI
+npm test                                  # Run all Vitest tests once
+npm run test:watch                        # Watch mode for development
+npm run test:coverage                     # Run with coverage report
+npx vitest run test/utils.test.ts         # Run a single unit test file
+npx vitest run -t "formats dates"         # Run tests matching a name pattern
+npm run test:e2e                          # Run Playwright E2E tests
+npm run test:e2e:ui                       # Run E2E with interactive UI
+npx playwright test e2e/login.spec.ts     # Run a single E2E spec
 ```
 
 ### CI/CD
@@ -137,37 +145,4 @@ npm run test:e2e:ui # Run E2E with interactive UI
 
 ## Feature Roadmap
 
-### Planner / Calendar
-- Weekly view primary (monthly optional later)
-- Multiple workouts per day ✅
-- Template weekly program with daily tweaks
-- Periodized training structure: Macrocycles → Mesocycles → Microcycles
-
-### Workout Library (Exercises)
-- Exercise fields: name, description, steps, target duration, difficulty (not all required)
-- Examples: yoga, max hang, no hang, limit boulder, footwork
-- Progressive overload: track weight/volume increases over time
-- **Categories** (show grouped, expandable):
-  - Antagonist & Stabilizer Training
-  - Core Training
-  - Limit-Strength Exercises
-  - Power Training
-  - Strength/Power-Endurance Training
-  - Local/Generalized Aerobic Training
-
-### Timers
-- Rest timers + Interval timers (hangboard) ✅
-- Audio cues (not just vibration)
-- Customizable timer presets per workout
-
-### Progress Dashboard
-- Key metrics: grades sent, training consistency
-- Monthly view default with toggleable time ranges
-- Goal tracking (e.g., "send V6 by March")
-
-### Multi-Device Sync ✅
-- **Firebase** (Firestore + Auth) - free tier sufficient for <5 users
-- Config in [firebase.ts](../firebase.ts), Auth context in [context/AuthContext.tsx](../context/AuthContext.tsx)
-- Email/Google authentication implemented
-- Real-time sync across devices via Firestore onSnapshot listeners
-- Data stored per-user under `users/{userId}/` collections
+See [.github/docs/roadmap.md](docs/roadmap.md) for the master roadmap and per-feature docs in [.github/docs/](docs/). Multi-device sync via Firebase is implemented; other features are tracked with 🔲/❓/✅/🚧 status markers there.

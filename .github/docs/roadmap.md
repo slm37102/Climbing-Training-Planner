@@ -1,5 +1,7 @@
 # Climbing Training Planner - Roadmap
 
+> **Operational status tracker.** For product strategy, personas, architecture principles, and the prioritized P0 list with linked GitHub issues, see [unified-roadmap.md](unified-roadmap.md).
+
 ## Status Legend
 | Symbol | Meaning |
 |--------|---------|
