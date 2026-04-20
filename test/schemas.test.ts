@@ -168,6 +168,81 @@ describe('schemas', () => {
       });
       expect(r.success).toBe(false);
     });
+
+    it('accepts a climb with all new conditions fields', () => {
+      const r = ClimbLogSchema.safeParse({
+        id: 'c1',
+        grade: 'V7',
+        attempts: 3,
+        sent: true,
+        timestamp: 1,
+        location: 'outdoor',
+        routeName: 'The Nose',
+        crag: 'Fontainebleau',
+        rockType: 'sandstone',
+        tempC: 8,
+        humidityPct: 55,
+        sendStyle: 'redpoint',
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it('accepts a climb without any of the new conditions fields (backward-compat)', () => {
+      const r = ClimbLogSchema.safeParse({
+        id: 'c-legacy',
+        grade: 'V3',
+        attempts: 1,
+        sent: false,
+        timestamp: 1,
+      });
+      expect(r.success).toBe(true);
+    });
+
+    it('rejects an invalid location enum', () => {
+      const r = ClimbLogSchema.safeParse({
+        id: 'c1',
+        grade: 'V4',
+        attempts: 1,
+        sent: true,
+        timestamp: 1,
+        location: 'mars',
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it('rejects an invalid sendStyle enum', () => {
+      const r = ClimbLogSchema.safeParse({
+        id: 'c1',
+        grade: 'V4',
+        attempts: 1,
+        sent: true,
+        timestamp: 1,
+        sendStyle: 'send-it',
+      });
+      expect(r.success).toBe(false);
+    });
+
+    it('rejects tempC out of plausible range', () => {
+      const tooLow = ClimbLogSchema.safeParse({
+        id: 'c1', grade: 'V4', attempts: 1, sent: true, timestamp: 1, tempC: -50,
+      });
+      const tooHigh = ClimbLogSchema.safeParse({
+        id: 'c1', grade: 'V4', attempts: 1, sent: true, timestamp: 1, tempC: 100,
+      });
+      expect(tooLow.success).toBe(false);
+      expect(tooHigh.success).toBe(false);
+    });
+
+    it('rejects humidityPct outside 0..100', () => {
+      const neg = ClimbLogSchema.safeParse({
+        id: 'c1', grade: 'V4', attempts: 1, sent: true, timestamp: 1, humidityPct: -1,
+      });
+      const over = ClimbLogSchema.safeParse({
+        id: 'c1', grade: 'V4', attempts: 1, sent: true, timestamp: 1, humidityPct: 101,
+      });
+      expect(neg.success).toBe(false);
+      expect(over.success).toBe(false);
+    });
   });
 
   describe('UserSettingsSchema', () => {

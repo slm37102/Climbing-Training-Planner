@@ -78,6 +78,17 @@ export const ScheduledWorkoutSchema = z
   })
   .passthrough();
 
+export const ClimbLocationSchema = z.enum(['gym', 'outdoor']);
+
+export const SendStyleSchema = z.enum([
+  'onsight',
+  'flash',
+  'redpoint',
+  'repeat',
+  'project',
+  'attempt',
+]);
+
 export const ClimbLogSchema = z
   .object({
     id: z.string(),
@@ -86,6 +97,13 @@ export const ClimbLogSchema = z
     attempts: z.number(),
     sent: z.boolean(),
     timestamp: z.number(),
+    location: ClimbLocationSchema.optional(),
+    routeName: z.string().optional(),
+    crag: z.string().optional(),
+    rockType: z.string().optional(),
+    tempC: z.number().min(-20).max(40).optional(),
+    humidityPct: z.number().min(0).max(100).optional(),
+    sendStyle: SendStyleSchema.optional(),
   })
   .passthrough();
 

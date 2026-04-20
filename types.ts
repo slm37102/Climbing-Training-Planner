@@ -146,6 +146,15 @@ export interface ScheduledWorkout {
 
 import type { GradeSystem } from './utils/grades';
 
+export type ClimbLocation = 'gym' | 'outdoor';
+export type SendStyle =
+  | 'onsight'
+  | 'flash'
+  | 'redpoint'
+  | 'repeat'
+  | 'project'
+  | 'attempt';
+
 export interface ClimbLog {
   id: string;
   grade: string;
@@ -156,6 +165,15 @@ export interface ClimbLog {
   attempts: number;
   sent: boolean;
   timestamp: number;
+  // Optional indoor/outdoor context. All fields are additive and backward-
+  // compatible — older logs without them remain valid.
+  location?: ClimbLocation;
+  routeName?: string;
+  crag?: string;
+  rockType?: string;
+  tempC?: number;
+  humidityPct?: number;
+  sendStyle?: SendStyle;
 }
 
 export interface ExerciseLog {
