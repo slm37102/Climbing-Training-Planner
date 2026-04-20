@@ -49,6 +49,16 @@ export const DEFAULT_INTERVAL_PRESETS: TimerPreset[] = [
   }
 ];
 
+export type ExercisePillar =
+  | 'MaxHang'
+  | 'Repeaters'
+  | 'LimitBoulder'
+  | 'NoHangs'
+  | 'Power'
+  | 'Endurance'
+  | 'Antagonist'
+  | 'Other';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -59,6 +69,7 @@ export interface Exercise {
   defaultReps?: number;
   defaultDurationSeconds?: number;
   timerConfig?: TimerConfig;
+  pillar?: ExercisePillar;
 }
 
 export interface WorkoutExercise {
@@ -141,6 +152,8 @@ export interface ExerciseLog {
   rpe?: number;              // 1-10
   notes?: string;
   timestamp: number;
+  pillar?: ExercisePillar;
+  isPR?: boolean;
 }
 
 export interface SessionLog {
