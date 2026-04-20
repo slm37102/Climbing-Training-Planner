@@ -1,6 +1,15 @@
 import '@testing-library/jest-dom';
 import { vi, beforeEach } from 'vitest';
 
+// Mock vite-plugin-pwa virtual module
+vi.mock('virtual:pwa-register/react', () => ({
+  useRegisterSW: () => ({
+    needRefresh: [false, vi.fn()],
+    offlineReady: [false, vi.fn()],
+    updateServiceWorker: vi.fn(),
+  }),
+}));
+
 // Mock Firebase modules
 vi.mock('firebase/app', () => ({
   initializeApp: vi.fn(() => ({})),
