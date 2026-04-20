@@ -1,4 +1,12 @@
 import React, { useState, useMemo, Suspense, lazy } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
@@ -7,7 +15,6 @@ import { Login } from './pages/Login';
 import { Onboarding, OnboardingAnswers } from './pages/Onboarding';
 import { LoadingFallback } from './components/LoadingFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AppView } from './types';
 import { pickPlanForPersona, nextMondayISO } from './utils/onboarding';
 
 const Planner = lazy(() =>
@@ -31,9 +38,72 @@ const HangboardPicker = lazy(() =>
 
 const SEED_WORKOUT_IDS = new Set(['w1', 'w2', 'w3', 'w4']);
 
-const AppContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<AppView>('DASHBOARD');
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  return <>{children}</>;
+};
+
+const LoginRoute: React.FC = () => {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (user) return <Navigate to="/" replace />;
+  return <Login />;
+};
+
+// Dashboard wrapper: translates legacy onNavigate(view) calls into router navigation.
+const VIEW_TO_PATH: Record<string, string> = {
+  DASHBOARD: '/',
+  PLANNER: '/planner',
+  WORKOUTS: '/library',
+  SESSION: '/session',
+  PROGRESS: '/progress',
+  HANGBOARD_PICKER: '/hangboards',
+  SETTINGS: '/settings',
+};
+
+const DashboardRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return <Dashboard onNavigate={(view) => navigate(VIEW_TO_PATH[view] ?? '/')} />;
+};
+
+const WorkoutLibraryRoute: React.FC = () => {
+  return <WorkoutLibrary />;
+};
+
+const SessionTrackerRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return <SessionTracker onComplete={() => navigate('/')} />;
+};
+
+const HangboardPickerRoute: React.FC = () => {
+  return <HangboardPicker />;
+};
+
+const SettingsRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return <Settings onBack={() => navigate('/')} />;
+};
+
+const ProtectedShell: React.FC = () => {
+  const { user } = useAuth();
   const {
     settings,
     updateSettings,
@@ -49,12 +119,10 @@ const AppContent: React.FC = () => {
     if (onboardingDismissed) return false;
     if (settings.onboardingComplete === true) return false;
 
-    // Existing users with real data: silently skip.
     const nonSeedWorkouts = workouts.filter((w) => !SEED_WORKOUT_IDS.has(w.id));
     const hasRealData = nonSeedWorkouts.length > 0 || sessions.length > 0;
     if (hasRealData) return false;
 
-    // For undefined onboardingComplete, only onboard accounts created within 48h.
     if (settings.onboardingComplete === undefined) {
       const creationTime = user.metadata?.creationTime;
       if (!creationTime) return false;
@@ -66,7 +134,6 @@ const AppContent: React.FC = () => {
     return true;
   }, [user, onboardingDismissed, settings.onboardingComplete, workouts, sessions]);
 
-  // Silent-skip side effect: if we have real data but no flag, mark complete once.
   React.useEffect(() => {
     if (!user) return;
     if (settings.onboardingComplete === true) return;
@@ -96,24 +163,11 @@ const AppContent: React.FC = () => {
         }
       }
     } catch (e) {
-      // Non-fatal: user can still proceed; settings may retry elsewhere.
       console.error('Onboarding save failed', e);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-stone-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
-  if (shouldShowOnboarding) {
+  if (shouldShowOnboarding && user) {
     return (
       <Onboarding
         onComplete={handleOnboardingComplete}
@@ -122,41 +176,51 @@ const AppContent: React.FC = () => {
     );
   }
 
-  const renderView = () => {
-    switch (currentView) {
-      case 'DASHBOARD':
-        return <Dashboard onNavigate={setCurrentView} />;
-      case 'PLANNER':
-        return <Planner />;
-      case 'WORKOUTS':
-        return <WorkoutLibrary onNavigate={setCurrentView} />;
-      case 'SESSION':
-        return <SessionTracker onComplete={() => setCurrentView('DASHBOARD')} />;
-      case 'PROGRESS':
-        return <Progress />;
-      case 'HANGBOARD_PICKER':
-        return <HangboardPicker onNavigate={setCurrentView} />;
-      case 'SETTINGS':
-        return <Settings onBack={() => setCurrentView('DASHBOARD')} />;
-      default:
-        return <Dashboard onNavigate={setCurrentView} />;
-    }
-  };
-
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView}>
+    <Layout>
       <ErrorBoundary>
-        <Suspense fallback={<LoadingFallback />}>{renderView()}</Suspense>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<DashboardRoute />} />
+            <Route path="/planner" element={<Planner />} />
+            <Route path="/library" element={<WorkoutLibraryRoute />} />
+            <Route path="/progress" element={<Progress />} />
+            <Route path="/session" element={<SessionTrackerRoute />} />
+            <Route path="/settings" element={<SettingsRoute />} />
+            <Route path="/hangboards" element={<HangboardPickerRoute />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
     </Layout>
   );
 };
 
+const AppContent: React.FC = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginRoute />} />
+      <Route
+        path="/*"
+        element={
+          <RequireAuth>
+            <ProtectedShell />
+          </RequireAuth>
+        }
+      />
+    </Routes>
+  );
+};
+
+export { AppContent };
+
 export default function App() {
   return (
     <AuthProvider>
       <StoreProvider>
-        <AppContent />
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
       </StoreProvider>
     </AuthProvider>
   );

@@ -1,14 +1,11 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, Info, BookOpen, Ruler, Timer as TimerIcon } from 'lucide-react';
-import { AppView, HangboardPillar, HangboardProtocol, WorkoutType, Workout } from '../types';
+import { HangboardPillar, HangboardProtocol, WorkoutType, Workout } from '../types';
 import { HANGBOARD_PROTOCOLS, protocolToWorkoutInput } from '../data/hangboardProtocols';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
 import { cn } from '../utils';
-
-interface HangboardPickerProps {
-  onNavigate: (view: AppView) => void;
-}
 
 const PILLAR_ORDER: HangboardPillar[] = ['MaxStrength', 'Endurance', 'Frequency'];
 
@@ -43,8 +40,9 @@ const prescriptionLabel = (p: HangboardProtocol) =>
     p.sets === 1 ? '' : 's'
   }`;
 
-export const HangboardPicker: React.FC<HangboardPickerProps> = ({ onNavigate }) => {
+export const HangboardPicker: React.FC = () => {
   const { addWorkout } = useStore();
+  const navigate = useNavigate();
   const [openTooltipId, setOpenTooltipId] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
@@ -64,14 +62,14 @@ export const HangboardPicker: React.FC<HangboardPickerProps> = ({ onNavigate }) 
       type: WorkoutType.HANGBOARD
     };
     await addWorkout(workout);
-    onNavigate('WORKOUTS');
+    navigate('/library');
   };
 
   return (
     <div className="p-4 space-y-5 pb-24">
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onNavigate('WORKOUTS')}
+          onClick={() => navigate('/library')}
           className="p-2 -ml-2 text-stone-400 hover:text-stone-100"
           aria-label="Back to library"
         >

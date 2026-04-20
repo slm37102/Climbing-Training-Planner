@@ -251,8 +251,6 @@ export interface Goal {
   status: GoalStatus;
 }
 
-export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS' | 'HANGBOARD_PICKER' | 'SETTINGS';
-
 // Hangboard Protocol — a science-backed interval prescription that can be
 // turned into a concrete Workout. See data/hangboardProtocols.ts for the seed
 // catalog. A future PR may migrate this to a global Firestore collection so
