@@ -398,3 +398,53 @@ export function parseDocs<T>(
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Projects (Beta Book)
+// ---------------------------------------------------------------------------
+
+export const ProjectDisciplineSchema = z.enum(['boulder', 'sport', 'trad']);
+export const ProjectStatusSchema = z.enum(['projecting', 'sent', 'shelved']);
+
+/**
+ * Runtime schema for a `Project`. Required fields: id, name, discipline,
+ * createdAt. `status` defaults to 'projecting' when missing so older or
+ * partially-written docs still load. Numeric `attempts` defaults to 0.
+ */
+export const ProjectSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().min(1),
+    crag: z.string().optional(),
+    grade: z.string().optional(),
+    discipline: ProjectDisciplineSchema,
+    status: ProjectStatusSchema.default('projecting'),
+    beta: z.string().optional(),
+    attempts: z.number().int().nonnegative().optional(),
+    createdAt: z.string(),
+    sentAt: z.string().optional(),
+  })
+  .passthrough();
+
+/**
+ * Parse an array of raw Firestore-like objects (each expected to already
+ * contain its `id` merged with doc data) into validated `Project`s. Invalid
+ * entries are logged and skipped. Follows the same philosophy as
+ * `parseDocs` but takes plain objects so callers (and tests) don't need to
+ * construct `DocLike` wrappers.
+ */
+export function parseProjects(docs: unknown[]): import('../types').Project[] {
+  const out: import('../types').Project[] = [];
+  for (const raw of docs) {
+    const result = ProjectSchema.safeParse(raw);
+    if (result.success) {
+      out.push(result.data as import('../types').Project);
+    } else {
+      const id = (raw && typeof raw === 'object' && 'id' in raw)
+        ? (raw as { id: unknown }).id
+        : '<unknown>';
+      console.warn('Invalid Project doc', id, result.error.flatten());
+    }
+  }
+  return out;
+}

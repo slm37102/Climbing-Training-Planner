@@ -37,6 +37,9 @@ const Settings = lazy(() =>
 const HangboardPicker = lazy(() =>
   import('./pages/HangboardPicker').then((m) => ({ default: m.HangboardPicker }))
 );
+const Projects = lazy(() =>
+  import('./pages/Projects').then((m) => ({ default: m.Projects }))
+);
 
 const SEED_WORKOUT_IDS = new Set(['w1', 'w2', 'w3', 'w4']);
 
@@ -190,6 +193,7 @@ const ProtectedShell: React.FC = () => {
             <Route path="/session" element={<SessionTrackerRoute />} />
             <Route path="/settings" element={<SettingsRoute />} />
             <Route path="/hangboards" element={<HangboardPickerRoute />} />
+            <Route path="/projects" element={<Projects />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
