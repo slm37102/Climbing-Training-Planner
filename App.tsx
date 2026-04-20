@@ -7,6 +7,8 @@ import { Login } from './pages/Login';
 import { Onboarding, OnboardingAnswers } from './pages/Onboarding';
 import { LoadingFallback } from './components/LoadingFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { InstallPrompt } from './components/InstallPrompt';
+import { UpdateToast } from './components/UpdateToast';
 import { AppView } from './types';
 import { pickPlanForPersona, nextMondayISO } from './utils/onboarding';
 
@@ -148,6 +150,7 @@ const AppContent: React.FC = () => {
       <ErrorBoundary>
         <Suspense fallback={<LoadingFallback />}>{renderView()}</Suspense>
       </ErrorBoundary>
+      <InstallPrompt />
     </Layout>
   );
 };
@@ -157,6 +160,7 @@ export default function App() {
     <AuthProvider>
       <StoreProvider>
         <AppContent />
+        <UpdateToast />
       </StoreProvider>
     </AuthProvider>
   );
