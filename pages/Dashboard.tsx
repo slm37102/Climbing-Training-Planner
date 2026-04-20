@@ -11,6 +11,7 @@ import { computeDailyLoads, shouldShowDeloadBanner } from '../utils/load';
 import { convertGrade, gradeRank, GradeSystem } from '../utils/grades';
 import { computeOverload, inferPillarFromName } from '../utils/progression';
 import { ReadinessPill } from '../components/ReadinessPill';
+import { Term } from '../components/Term';
 import { ReadinessCheckIn } from '../components/ReadinessCheckIn';
 import { shouldSuggestAlternative } from '../utils/readiness';
 
@@ -451,7 +452,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div className="flex justify-between items-start">
                     <div>
                       <h4 className="text-stone-200 font-medium text-sm">{w?.name || 'Free Session'}</h4>
-                      <p className="text-stone-500 text-xs">{new Date(session.date).toLocaleDateString()} • {session.durationMinutes}m • RPE {session.rpe}</p>
+                      <p className="text-stone-500 text-xs">{new Date(session.date).toLocaleDateString()} • {session.durationMinutes}m • <Term id="rpe">RPE</Term> {session.rpe}</p>
                     </div>
                     <div className="flex gap-2">
                        {/* Action Buttons */}
@@ -525,7 +526,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               </div>
             ) : (
               <p className="text-xs text-stone-500 italic mb-4">
-                Try a lighter option like "No-Hangs 3×5" or "ARC 30 min".
+                Try a lighter option like "No-Hangs 3×5" or "<Term id="arc">ARC</Term> 30 min".
               </p>
             )}
             <div className="flex gap-2">
@@ -560,7 +561,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                        />
                    </div>
                    <div>
-                       <label className="text-xs text-stone-400 block mb-1">RPE (1-10)</label>
+                       <label className="text-xs text-stone-400 block mb-1"><Term id="rpe">RPE</Term> (1-10)</label>
                        <input 
                          type="number" max={10} min={1}
                          value={editForm.rpe} 

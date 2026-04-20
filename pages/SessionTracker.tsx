@@ -8,6 +8,7 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise, GradeTarget, StrengthTarget } from '../types';
 import { convertGrade, gradeRank, listGrades, GRADE_SYSTEMS, GradeSystem } from '../utils/grades';
 import { computeOverload, inferPillarFromName, didExceedTarget, OverloadTarget } from '../utils/progression';
+import { Term } from '../components/Term';
 
 // State for tracking exercise progress during session
 interface ExerciseProgress {
@@ -823,7 +824,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
 
           {/* End of Session inputs */}
           <div className="bg-stone-800/50 p-4 rounded-xl space-y-3">
-             <label className="text-xs text-stone-400 block">Session RPE (1-10)</label>
+             <label className="text-xs text-stone-400 block">Session <Term id="rpe">RPE</Term> (1-10)</label>
              <input 
                type="range" min="1" max="10" 
                value={rpe} onChange={(e) => setRpe(parseInt(e.target.value))} 

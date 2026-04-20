@@ -1,11 +1,12 @@
 import React from 'react';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, Info, BookOpen } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
   GRADE_SYSTEMS,
   GRADE_SYSTEM_LABELS,
   GradeSystem,
 } from '../utils/grades';
+import { glossaryList } from '../data/glossary';
 
 interface SettingsProps {
   onBack: () => void;
@@ -77,6 +78,32 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
             be treated as rough guides.
           </p>
         </div>
+      </section>
+
+      <section className="bg-stone-800 rounded-xl border border-stone-700 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-amber-400" />
+          <h2 className="text-sm font-semibold text-stone-200 uppercase tracking-wide">
+            Glossary
+          </h2>
+        </div>
+        <p className="text-xs text-stone-500">
+          Training jargon translated to plain English. Terms are also
+          available as inline tooltips throughout the app.
+        </p>
+        <dl className="divide-y divide-stone-700/60">
+          {glossaryList().map(entry => (
+            <div key={entry.term} className="py-2">
+              <dt className="text-sm font-medium text-amber-300">{entry.term}</dt>
+              <dd className="text-xs text-stone-400 mt-0.5 leading-relaxed">
+                {entry.short}
+                {entry.long && (
+                  <span className="block text-stone-500 mt-1">{entry.long}</span>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
     </div>
   );
