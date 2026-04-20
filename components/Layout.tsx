@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Dumbbell, TrendingUp, Play } from 'lucide-react';
+import { Home, Calendar, Dumbbell, TrendingUp, Play, BookMarked } from 'lucide-react';
 import { cn } from '../utils';
 import { useStore } from '../context/StoreContext';
 
@@ -68,6 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           <NavItem to="/library" icon={Dumbbell} label="Library" />
+          <NavItem to="/projects" icon={BookMarked} label="Projects" />
           <NavItem to="/progress" icon={TrendingUp} label="Stats" />
       </nav>
     </div>
