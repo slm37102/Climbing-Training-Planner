@@ -170,6 +170,185 @@ export const UserSettingsSchema = z
   })
   .passthrough();
 
+// ---------------------------------------------------------------------------
+// Goals
+// ---------------------------------------------------------------------------
+
+const GradeTargetSchema = z
+  .object({
+    type: z.literal('grade'),
+    grade: z.string(),
+    style: z.enum(['send', 'flash', 'onsight']),
+  })
+  .passthrough();
+
+const StrengthTargetSchema = z
+  .object({
+    type: z.literal('strength'),
+    exerciseId: z.string().optional(),
+    metric: z.enum(['added_weight', 'hold_time', 'edge_depth']),
+    targetValue: z.number(),
+    unit: z.string(),
+  })
+  .passthrough();
+
+const GoalStatusSchema = z.enum(['active', 'completed', 'archived']);
+
+// Fields shared by every goal variant. Legacy-compat fields are optional
+// so new-shape docs parse cleanly and old-shape docs round-trip.
+const GoalCommonShape = {
+  id: z.string(),
+  deadline: z.string().optional(),
+  achieved: z.boolean().optional(),
+  notes: z.string().optional(),
+  // Legacy
+  title: z.string().optional(),
+  description: z.string().optional(),
+  status: GoalStatusSchema.optional(),
+  target: z.union([GradeTargetSchema, StrengthTargetSchema]).optional(),
+  targetDate: z.string().optional(),
+  createdAt: z.string().optional(),
+  completedAt: z.string().optional(),
+} as const;
+
+const GradeGoalSchema = z
+  .object({
+    ...GoalCommonShape,
+    type: z.literal('grade'),
+    targetGrade: z.string(),
+    discipline: z.enum(['boulder', 'sport', 'trad']),
+  })
+  .passthrough();
+
+const VolumeGoalSchema = z
+  .object({
+    ...GoalCommonShape,
+    type: z.literal('volume'),
+    targetCount: z.number(),
+    unit: z.enum(['sessions', 'hours', 'climbs']),
+    window: z.enum(['weekly', 'monthly', 'block']),
+  })
+  .passthrough();
+
+const StrengthGoalSchema = z
+  .object({
+    ...GoalCommonShape,
+    type: z.literal('strength'),
+    metric: z.enum(['maxHang', 'weightedPullup', 'oneArmHang', 'custom']),
+    targetKg: z.number().optional(),
+    durationSec: z.number().optional(),
+    customLabel: z.string().optional(),
+  })
+  .passthrough();
+
+const ProjectGoalSchema = z
+  .object({
+    ...GoalCommonShape,
+    type: z.literal('project'),
+    routeName: z.string(),
+    crag: z.string().optional(),
+    grade: z.string().optional(),
+  })
+  .passthrough();
+
+const CompGoalSchema = z
+  .object({
+    ...GoalCommonShape,
+    type: z.literal('comp'),
+    compName: z.string(),
+    date: z.string(),
+    placementTarget: z.string().optional(),
+  })
+  .passthrough();
+
+const RehabGoalSchema = z
+  .object({
+    ...GoalCommonShape,
+    type: z.literal('rehab'),
+    injury: z.string(),
+    phase: z.enum(['acute', 'sub-acute', 'return-to-climb']),
+    clearedBy: z.string().optional(),
+  })
+  .passthrough();
+
+/**
+ * Pre-parse migration for goal docs:
+ *  - Legacy docs with no `type` but a `target.type === 'grade'` or a top-level
+ *    `targetGrade` are treated as grade goals.
+ *  - Legacy docs with `target.type === 'strength'` in the old nested shape
+ *    are mapped to the new `type: 'strength'` with best-effort metric
+ *    inference (old `added_weight` / `hold_time` / `edge_depth` metrics have
+ *    no direct equivalent in the new spec's `maxHang` / `weightedPullup`
+ *    etc., so we default to `custom` and stash the old label).
+ *  - For volume goals, accept the spec's `target: number` spelling and
+ *    normalize it to `targetCount` so it matches the TS type.
+ */
+const goalPreprocess = (raw: unknown): unknown => {
+  if (!raw || typeof raw !== 'object') return raw;
+  const g = { ...(raw as Record<string, unknown>) };
+  const legacyTarget = g.target as { type?: string; grade?: string; metric?: string; targetValue?: number; unit?: string; exerciseId?: string } | undefined;
+
+  if (typeof g.type !== 'string') {
+    if (legacyTarget?.type === 'grade' || typeof g.targetGrade === 'string') {
+      g.type = 'grade';
+    } else if (legacyTarget?.type === 'strength') {
+      g.type = 'strength';
+    }
+  }
+
+  if (g.type === 'grade') {
+    if (typeof g.targetGrade !== 'string' && typeof legacyTarget?.grade === 'string') {
+      g.targetGrade = legacyTarget.grade;
+    }
+    if (typeof g.discipline !== 'string') {
+      g.discipline = 'boulder';
+    }
+  }
+
+  if (g.type === 'strength') {
+    const m = g.metric;
+    const allowedNew = ['maxHang', 'weightedPullup', 'oneArmHang', 'custom'];
+    if (typeof m !== 'string' || !allowedNew.includes(m)) {
+      if (legacyTarget?.metric) {
+        g.customLabel = g.customLabel ?? legacyTarget.metric;
+      }
+      g.metric = 'custom';
+    }
+    if (g.targetKg === undefined && legacyTarget?.unit === 'kg' && typeof legacyTarget.targetValue === 'number') {
+      g.targetKg = legacyTarget.targetValue;
+    }
+    if (g.durationSec === undefined && legacyTarget?.unit === 'seconds' && typeof legacyTarget.targetValue === 'number') {
+      g.durationSec = legacyTarget.targetValue;
+    }
+  }
+
+  if (g.type === 'volume') {
+    if (g.targetCount === undefined && typeof g.target === 'number') {
+      g.targetCount = g.target;
+      delete g.target;
+    }
+  }
+
+  return g;
+};
+
+/**
+ * Runtime schema for a `Goal` discriminated union. Applies the legacy
+ * migration preprocessor so docs written by older clients (or the bare
+ * pre-`type` shape) load without data loss.
+ */
+export const GoalSchema = z.preprocess(
+  goalPreprocess,
+  z.discriminatedUnion('type', [
+    GradeGoalSchema,
+    VolumeGoalSchema,
+    StrengthGoalSchema,
+    ProjectGoalSchema,
+    CompGoalSchema,
+    RehabGoalSchema,
+  ]),
+);
+
 /**
  * Minimal shape of the `QueryDocumentSnapshot`s returned by Firestore
  * `onSnapshot` callbacks. Extracted so `parseDocs` can be called from tests
