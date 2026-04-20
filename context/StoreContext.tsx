@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal, TrainingPlan, Readiness } from '../types';
+import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, Goal, TrainingPlan, Readiness } from '../types';
 import { generateId, formatDate } from '../utils';
 import { SEED_TRAINING_PLANS, buildPlanApplication } from '../data/trainingPlans';
 import {
@@ -20,6 +20,7 @@ import {
   UserSettingsSchema,
   parseDocs,
 } from '../schemas';
+import { EXERCISE_CATALOG } from '../data/exerciseCatalog';
 
 interface StoreContextType {
   workouts: Workout[];
@@ -110,178 +111,9 @@ const SEED_WORKOUTS: Workout[] = [
   }
 ];
 
-const SEED_EXERCISES: Exercise[] = [
-  // Antagonist & Stabilizer
-  {
-    id: 'e1',
-    name: 'Push-ups',
-    description: 'Standard push-ups for chest and tricep balance.',
-    category: ExerciseCategory.ANTAGONIST,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultReps: 15
-  },
-  {
-    id: 'e2',
-    name: 'Reverse Wrist Curls',
-    description: 'Forearm extensor strengthening to prevent elbow issues.',
-    category: ExerciseCategory.ANTAGONIST,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultReps: 20
-  },
-  {
-    id: 'e3',
-    name: 'External Rotations',
-    description: 'Shoulder stabilizer work with band or light weight.',
-    category: ExerciseCategory.ANTAGONIST,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultReps: 15
-  },
-  {
-    id: 'e16',
-    name: 'Scapular Pull-ups',
-    description: 'Controlled scapular depression and retraction from a dead hang.',
-    category: ExerciseCategory.ANTAGONIST,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultReps: 10
-  },
-  {
-    id: 'e17',
-    name: 'Prone Y-T-W Raises',
-    description: 'Prone shoulder raises for mid-back and rotator cuff endurance.',
-    category: ExerciseCategory.ANTAGONIST,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultReps: 12
-  },
-  // Core Training
-  {
-    id: 'e4',
-    name: 'Hanging Leg Raises',
-    description: 'Hang from bar, raise legs to 90 degrees or higher.',
-    category: ExerciseCategory.CORE,
-    difficulty: 'Intermediate',
-    defaultSets: 3,
-    defaultReps: 10
-  },
-  {
-    id: 'e5',
-    name: 'Front Lever Progressions',
-    description: 'Tuck, advanced tuck, or full front lever holds.',
-    category: ExerciseCategory.CORE,
-    difficulty: 'Advanced',
-    defaultSets: 5,
-    defaultDurationSeconds: 10
-  },
-  {
-    id: 'e6',
-    name: 'Hollow Body Hold',
-    description: 'Gymnastic hold for core tension.',
-    category: ExerciseCategory.CORE,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultDurationSeconds: 30
-  },
-  {
-    id: 'e18',
-    name: 'Dead Bugs',
-    description: 'Alternating arm/leg extensions while keeping the lower back flat.',
-    category: ExerciseCategory.CORE,
-    difficulty: 'Beginner',
-    defaultSets: 3,
-    defaultReps: 12
-  },
-  // Limit-Strength
-  {
-    id: 'e7',
-    name: 'Max Hangs',
-    description: '10 second max weight hangs on 18-20mm edge.',
-    category: ExerciseCategory.LIMIT_STRENGTH,
-    difficulty: 'Advanced',
-    defaultSets: 5,
-    defaultDurationSeconds: 10,
-    timerConfig: { workSeconds: 10, restSeconds: 0, reps: 1, sets: 5, restBetweenSetsSeconds: 180 }
-  },
-  {
-    id: 'e8',
-    name: 'One-Arm Lock-offs',
-    description: 'Lock off at 90 degrees, assisted or weighted.',
-    category: ExerciseCategory.LIMIT_STRENGTH,
-    difficulty: 'Advanced',
-    defaultSets: 3,
-    defaultReps: 3
-  },
-  // Power Training
-  {
-    id: 'e9',
-    name: 'Campus Ladders',
-    description: '1-2-3 or 1-3-5 campus board sequences.',
-    category: ExerciseCategory.POWER,
-    difficulty: 'Advanced',
-    defaultSets: 5,
-    defaultReps: 2
-  },
-  {
-    id: 'e10',
-    name: 'Explosive Pull-ups',
-    description: 'Pull up fast, hands leave bar at top.',
-    category: ExerciseCategory.POWER,
-    difficulty: 'Intermediate',
-    defaultSets: 4,
-    defaultReps: 5
-  },
-  // Strength/Power-Endurance
-  {
-    id: 'e11',
-    name: 'Repeaters 7/3',
-    description: '7 second hang, 3 second rest, 6 reps per set.',
-    category: ExerciseCategory.STRENGTH_ENDURANCE,
-    difficulty: 'Intermediate',
-    defaultSets: 3,
-    defaultReps: 6,
-    timerConfig: { workSeconds: 7, restSeconds: 3, reps: 6, sets: 3, restBetweenSetsSeconds: 180 }
-  },
-  {
-    id: 'e12',
-    name: '4x4s',
-    description: '4 boulder problems, 4 times through with minimal rest.',
-    category: ExerciseCategory.STRENGTH_ENDURANCE,
-    difficulty: 'Intermediate',
-    defaultSets: 4,
-    defaultReps: 4
-  },
-  {
-    id: 'e13',
-    name: 'Linked Boulder Circuit',
-    description: 'Chain 3-5 easy boulders without rest.',
-    category: ExerciseCategory.STRENGTH_ENDURANCE,
-    difficulty: 'Intermediate',
-    defaultSets: 3,
-    defaultReps: 1
-  },
-  // Local/Generalized Aerobic
-  {
-    id: 'e14',
-    name: 'ARC Training',
-    description: '20-45 minutes of continuous easy climbing.',
-    category: ExerciseCategory.AEROBIC,
-    difficulty: 'Beginner',
-    defaultSets: 1,
-    defaultDurationSeconds: 1800
-  },
-  {
-    id: 'e15',
-    name: 'Easy Traversing',
-    description: 'Traverse walls at low intensity for recovery.',
-    category: ExerciseCategory.AEROBIC,
-    difficulty: 'Beginner',
-    defaultSets: 1,
-    defaultDurationSeconds: 1200
-  }
-];
+// SEED_EXERCISES: canonical catalog sourced from data/exerciseCatalog.ts.
+// New users are seeded with the full catalog on first login.
+const SEED_EXERCISES: Exercise[] = EXERCISE_CATALOG;
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();

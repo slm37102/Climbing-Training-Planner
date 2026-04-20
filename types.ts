@@ -70,6 +70,18 @@ export interface Exercise {
   defaultDurationSeconds?: number;
   timerConfig?: TimerConfig;
   pillar?: ExercisePillar;
+  // Numbered execution cues/steps (3-6 items). Used by the catalog.
+  steps?: string[];
+  // Short form-correction reminders surfaced during a session.
+  cues?: string[];
+  // Things NOT to do — common coaching mistakes.
+  commonMistakes?: string[];
+  // Optional video demo link (YouTube or similar). Only populated when we
+  // have a confirmed reputable source — never fabricated.
+  videoUrl?: string;
+  // Optional target duration in minutes, used when the exercise is a whole
+  // workout block (e.g. ARC, long traverse sessions).
+  targetDurationMinutes?: number;
 }
 
 export interface WorkoutExercise {
@@ -101,6 +113,11 @@ export interface Workout {
   exercises?: WorkoutExercise[]; // Structured exercises
   phase?: TrainingPhase;
   personaTags?: string[];
+  // Optional catalog metadata — additive, backward-compatible.
+  category?: ExerciseCategory;
+  cues?: string[];
+  commonMistakes?: string[];
+  videoUrl?: string;
 }
 
 export interface PlanWeek {
