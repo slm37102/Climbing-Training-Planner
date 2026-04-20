@@ -9,6 +9,8 @@
 ## Git Workflow
 - **Commit and push at every milestone** - After completing a feature, fix, or significant change
 - **Never push directly to `main`** - It is production, always create a feature branch first
+- **Minimize merges to `main`** - every merge triggers a Netlify production deploy. Don't merge small standalone docs/roadmap PRs on their own; fold doc updates into the feature PR they describe, or batch them into a single periodic docs PR.
+- Ask before merging to `main`. Do not use `--admin` to bypass checks unless the user explicitly approves.
 - Use conventional commit messages: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
 - Create feature branches for all changes (e.g., `feat/exercise-system`, `fix/timer-bug`)
 - Push feature branch to remote, then create PR to merge into main
