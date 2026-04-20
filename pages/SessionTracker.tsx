@@ -5,6 +5,7 @@ import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight
 import { grades, cn, generateId, playAudioCue, initAudioContext } from '../utils';
 import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise, GradeTarget, StrengthTarget } from '../types';
 import { convertGrade, gradeRank, listGrades, GRADE_SYSTEMS, GradeSystem } from '../utils/grades';
+import { computeOverload, inferPillarFromName, didExceedTarget, OverloadTarget } from '../utils/progression';
 
 // State for tracking exercise progress during session
 interface ExerciseProgress {
@@ -89,25 +90,59 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
     return logsMap;
   }, [sessions, workout, activeSessionId]);
 
+  // Most-recent ExerciseLog for each exercise across ALL prior sessions (any
+  // workout), so we can hint overload even if the exercise moves between
+  // workouts.
+  const lastLogByExercise = useMemo(() => {
+    const map = new Map<string, ExerciseLog>();
+    sessions
+      .filter(s => s.id !== activeSessionId && s.exerciseLogs?.length)
+      .sort((a, b) => b.startTime - a.startTime)
+      .forEach(s => {
+        s.exerciseLogs?.forEach(log => {
+          if (!map.has(log.exerciseId)) map.set(log.exerciseId, log);
+        });
+      });
+    return map;
+  }, [sessions, activeSessionId]);
+
+  // Compute overload targets keyed by exerciseId for the active workout.
+  const overloadTargets = useMemo(() => {
+    const map = new Map<string, OverloadTarget>();
+    if (!workout?.exercises) return map;
+    workout.exercises.forEach(we => {
+      const prev = lastLogByExercise.get(we.exerciseId);
+      if (!prev) return;
+      const ex = exercises.find(e => e.id === we.exerciseId);
+      const pillar = ex?.pillar ?? inferPillarFromName(ex?.name ?? '');
+      map.set(we.exerciseId, computeOverload(prev, pillar));
+    });
+    return map;
+  }, [workout, lastLogByExercise, exercises]);
+
   // Initialize exercise progress when workout loads
   useEffect(() => {
     if (workout?.exercises && exerciseProgress.length === 0) {
       const initial: ExerciseProgress[] = workout.exercises.map(we => {
         const exercise = exercises.find(e => e.id === we.exerciseId);
         const prevLog = previousSessionLogs.get(we.exerciseId);
+        const target = overloadTargets.get(we.exerciseId);
+        // Pre-fill with overload target values when available, falling back
+        // to the previous session's numbers. All values remain editable.
+        const targetWeight = target?.load != null ? parseFloat(target.load) : undefined;
         return {
           exerciseId: we.exerciseId,
           completedSets: 0,
           completedReps: 0,
-          addedWeight: prevLog?.addedWeight,
-          edgeDepth: prevLog?.edgeDepth,
+          addedWeight: targetWeight ?? prevLog?.addedWeight,
+          edgeDepth: target?.edge ?? prevLog?.edgeDepth,
           resistanceBand: prevLog?.resistanceBand,
           isExpanded: false
         };
       });
       setExerciseProgress(initial);
     }
-  }, [workout, exercises, previousSessionLogs]);
+  }, [workout, exercises, previousSessionLogs, overloadTargets]);
 
   // Determine if we show the climb logging UI (Grade/Attempts/Sent)
   const showClimbLogging = !workout || (workout.type !== WorkoutType.HANGBOARD && workout.type !== WorkoutType.CONDITIONING && workout.type !== WorkoutType.REST);
@@ -317,18 +352,28 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       // Build exercise logs from progress
       const exerciseLogs: ExerciseLog[] = exerciseProgress
         .filter(ep => ep.completedSets > 0)
-        .map(ep => ({
-          id: generateId(),
-          exerciseId: ep.exerciseId,
-          completedSets: ep.completedSets,
-          completedReps: ep.completedReps,
-          addedWeight: ep.addedWeight,
-          edgeDepth: ep.edgeDepth,
-          resistanceBand: ep.resistanceBand,
-          rpe: ep.rpe,
-          notes: ep.notes,
-          timestamp: Date.now()
-        }));
+        .map(ep => {
+          const ex = exercises.find(e => e.id === ep.exerciseId);
+          const pillar = ex?.pillar ?? inferPillarFromName(ex?.name ?? '');
+          const log: ExerciseLog = {
+            id: generateId(),
+            exerciseId: ep.exerciseId,
+            completedSets: ep.completedSets,
+            completedReps: ep.completedReps,
+            addedWeight: ep.addedWeight,
+            edgeDepth: ep.edgeDepth,
+            resistanceBand: ep.resistanceBand,
+            rpe: ep.rpe,
+            notes: ep.notes,
+            timestamp: Date.now(),
+            pillar,
+          };
+          const target = overloadTargets.get(ep.exerciseId);
+          if (target) {
+            log.isPR = didExceedTarget(log, target);
+          }
+          return log;
+        });
       
       updateSession(session.id, { rpe, notes, exerciseLogs });
       endSession(session.id);
@@ -531,6 +576,39 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
                       {/* Expanded Details */}
                       {progress.isExpanded && (
                         <div className="px-3 pb-3 space-y-3 border-t border-stone-700/50 pt-3">
+                          {/* Progressive-overload target card */}
+                          {(() => {
+                            const target = overloadTargets.get(we.exerciseId);
+                            const prev = lastLogByExercise.get(we.exerciseId);
+                            if (!target || !prev) return null;
+                            const lastBits: string[] = [];
+                            if (prev.addedWeight != null) lastBits.push(`${prev.addedWeight}${settings.weightUnit}`);
+                            if (prev.edgeDepth != null) lastBits.push(`${prev.edgeDepth}mm`);
+                            lastBits.push(`${prev.completedSets}×${prev.completedReps}`);
+                            if (prev.rpe != null) lastBits.push(`RPE ${prev.rpe}`);
+                            const targetBits: string[] = [];
+                            if (target.load != null) targetBits.push(`${target.load}${settings.weightUnit}`);
+                            if (target.edge != null) targetBits.push(`${target.edge}mm`);
+                            if (target.sets != null && target.reps != null) targetBits.push(`${target.sets}×${target.reps}`);
+                            return (
+                              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                                  <span className="text-[11px] font-semibold text-amber-300 uppercase tracking-wide">
+                                    Overload Target
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-stone-400">
+                                  Last: {lastBits.join(' • ')}
+                                </div>
+                                <div className="text-xs text-amber-200 mt-0.5">
+                                  Target: {targetBits.length > 0 ? `${targetBits.join(' • ')} — ` : ''}
+                                  {target.notes}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           {/* Quick Set Completion */}
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-stone-400">Complete Set</span>

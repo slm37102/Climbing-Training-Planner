@@ -4,18 +4,19 @@ import { useAuth } from '../context/AuthContext';
 import { formatDate, compareGrades } from '../utils';
 import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { SessionLog, WorkoutType } from '../types';
+import { SessionLog, WorkoutType, ExerciseLog } from '../types';
 import { GoalCard } from '../components/goals/GoalCard';
 import { DeloadBanner } from '../components/DeloadBanner';
 import { computeDailyLoads, shouldShowDeloadBanner } from '../utils/load';
 import { convertGrade, gradeRank, GradeSystem } from '../utils/grades';
+import { computeOverload, inferPillarFromName } from '../utils/progression';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const { schedule, workouts, sessions, goals, activeSessionId, settings, startSession, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
+  const { schedule, workouts, sessions, exercises, goals, activeSessionId, settings, startSession, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
   const { user, logout } = useAuth();
   const todayStr = formatDate(new Date());
   
@@ -89,6 +90,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const handleStartWorkout = (workoutId: string) => {
      startSession(workoutId);
      onNavigate('SESSION');
+  };
+
+  // Map of exerciseId → most-recent ExerciseLog, used to produce a tiny
+  // "Upcoming: +2.5kg on Max Hangs" hint on today's workout card.
+  const lastLogByExercise = useMemo(() => {
+    const map = new Map<string, ExerciseLog>();
+    [...sessions]
+      .filter(s => s.exerciseLogs?.length)
+      .sort((a, b) => b.startTime - a.startTime)
+      .forEach(s => {
+        s.exerciseLogs?.forEach(log => {
+          if (!map.has(log.exerciseId)) map.set(log.exerciseId, log);
+        });
+      });
+    return map;
+  }, [sessions]);
+
+  const overloadHintFor = (workoutId: string): string | null => {
+    const w = workouts.find(x => x.id === workoutId);
+    if (!w?.exercises?.length) return null;
+    for (const we of w.exercises) {
+      const prev = lastLogByExercise.get(we.exerciseId);
+      if (!prev) continue;
+      const ex = exercises.find(e => e.id === we.exerciseId);
+      const pillar = ex?.pillar ?? inferPillarFromName(ex?.name ?? '');
+      const target = computeOverload(prev, pillar);
+      if (target.load != null && prev.addedWeight != null) {
+        const diff = parseFloat(target.load) - prev.addedWeight;
+        if (Math.abs(diff) >= 0.1) {
+          const sign = diff > 0 ? '+' : '';
+          return `Upcoming: ${sign}${diff}${settings.weightUnit} on ${ex?.name ?? 'exercise'}`;
+        }
+      }
+      if (target.edge != null && prev.edgeDepth != null && target.edge < prev.edgeDepth) {
+        return `Upcoming: −${prev.edgeDepth - target.edge}mm edge on ${ex?.name ?? 'exercise'}`;
+      }
+      if (target.sets != null && target.sets > prev.completedSets) {
+        return `Upcoming: +${target.sets - prev.completedSets} set on ${ex?.name ?? 'exercise'}`;
+      }
+    }
+    return null;
   };
 
   const handleToggleRest = (scheduleId: string, currentState: boolean) => {
@@ -220,6 +262,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                             </div>
                         </div>
                         <p className="text-stone-300 text-sm mb-3 line-clamp-1">{w.description}</p>
+                        {(() => {
+                          const hint = overloadHintFor(w.id);
+                          return hint ? (
+                            <p className="text-amber-400/90 text-[11px] mb-3 -mt-2 flex items-center gap-1">
+                              <span className="inline-block w-1 h-1 rounded-full bg-amber-400" />
+                              {hint}
+                            </p>
+                          ) : null;
+                        })()}
                         
                         {isRest ? (
                            <Button 
