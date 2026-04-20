@@ -169,6 +169,16 @@ export interface SessionLog {
   sleepQuality: 'Good' | 'Fair' | 'Bad';
   climbs: ClimbLog[];
   exerciseLogs?: ExerciseLog[];
+  readiness?: Readiness;
+}
+
+export interface Readiness {
+  sleep: number;      // hours, 3-10
+  skin: number;       // 1-5
+  energy: number;     // 1-5
+  stress: number;     // 1-5 (higher = worse)
+  score: number;      // 1-10, computed
+  recordedAt: number; // epoch ms
 }
 
 export interface UserSettings {
@@ -176,6 +186,10 @@ export interface UserSettings {
   startOfWeek: 'Monday' | 'Sunday';
   weightUnit: 'kg' | 'lbs';
   activePlanId?: string;
+  todayReadiness?: {
+    date: string; // YYYY-MM-DD
+    readiness: Readiness;
+  };
 }
 
 // Goal Types

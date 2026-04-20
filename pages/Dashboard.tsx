@@ -4,19 +4,22 @@ import { useAuth } from '../context/AuthContext';
 import { formatDate, compareGrades } from '../utils';
 import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { SessionLog, WorkoutType, ExerciseLog } from '../types';
+import { SessionLog, WorkoutType, ExerciseLog, Readiness, Workout } from '../types';
 import { GoalCard } from '../components/goals/GoalCard';
 import { DeloadBanner } from '../components/DeloadBanner';
 import { computeDailyLoads, shouldShowDeloadBanner } from '../utils/load';
 import { convertGrade, gradeRank, GradeSystem } from '../utils/grades';
 import { computeOverload, inferPillarFromName } from '../utils/progression';
+import { ReadinessPill } from '../components/ReadinessPill';
+import { ReadinessCheckIn } from '../components/ReadinessCheckIn';
+import { shouldSuggestAlternative } from '../utils/readiness';
 
 interface DashboardProps {
   onNavigate: (view: any) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const { schedule, workouts, sessions, exercises, goals, activeSessionId, settings, startSession, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
+  const { schedule, workouts, sessions, exercises, goals, activeSessionId, settings, startSession, setTodayReadiness, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
   const { user, logout } = useAuth();
   const todayStr = formatDate(new Date());
   
@@ -133,6 +136,72 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return null;
   };
 
+  // --- Readiness gating ---------------------------------------------------
+  const todayReadiness =
+    settings.todayReadiness && settings.todayReadiness.date === todayStr
+      ? settings.todayReadiness.readiness
+      : undefined;
+
+  const [showReadinessModal, setShowReadinessModal] = useState(false);
+  const [pendingWorkoutId, setPendingWorkoutId] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<{
+    workout: Workout | null;
+    readiness: Readiness;
+    alternatives: Workout[];
+  } | null>(null);
+
+  const launchStart = (workoutId: string, readiness: Readiness) => {
+    const w = workouts.find(x => x.id === workoutId) || null;
+    if (w && shouldSuggestAlternative(readiness.score, w.type, w.name)) {
+      const altNames = ['No-Hangs 3×5', 'ARC 30 min'];
+      const alternatives = altNames
+        .map(n => workouts.find(wk => wk.name.toLowerCase() === n.toLowerCase()))
+        .filter((x): x is Workout => !!x);
+      setSuggestion({ workout: w, readiness, alternatives });
+      return;
+    }
+    startSession(workoutId, readiness);
+    onNavigate('SESSION');
+  };
+
+  const handleStartGated = (workoutId: string) => {
+    if (todayReadiness) {
+      launchStart(workoutId, todayReadiness);
+      return;
+    }
+    setPendingWorkoutId(workoutId);
+    setShowReadinessModal(true);
+  };
+
+  const handleReadinessSaved = async (readiness: Readiness) => {
+    await setTodayReadiness(readiness);
+    setShowReadinessModal(false);
+    if (pendingWorkoutId) {
+      const id = pendingWorkoutId;
+      setPendingWorkoutId(null);
+      launchStart(id, readiness);
+    }
+  };
+
+  const handleProceedOriginal = () => {
+    if (!suggestion) return;
+    const wid = suggestion.workout?.id;
+    const r = suggestion.readiness;
+    setSuggestion(null);
+    if (wid) {
+      startSession(wid, r);
+      onNavigate('SESSION');
+    }
+  };
+
+  const handleSwapAlternative = (alt: Workout) => {
+    if (!suggestion) return;
+    const r = suggestion.readiness;
+    setSuggestion(null);
+    startSession(alt.id, r);
+    onNavigate('SESSION');
+  };
+
   const handleToggleRest = (scheduleId: string, currentState: boolean) => {
     toggleScheduledWorkout(scheduleId, !currentState);
   };
@@ -191,6 +260,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </button>
         </div>
       </header>
+
+      {/* Readiness check-in */}
+      <div className="flex items-center justify-between">
+        <ReadinessPill
+          score={todayReadiness?.score}
+          onClick={() => setShowReadinessModal(true)}
+        />
+        {todayReadiness && (
+          <span className="text-[10px] text-stone-500">
+            checked in today
+          </span>
+        )}
+      </div>
 
       {/* Training-load deload banner (issue #13) */}
       {showDeload && (
@@ -289,7 +371,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                               <Button 
                                 className="w-full" 
                                 variant="outline"
-                                onClick={() => handleStartWorkout(w.id)}
+                                onClick={() => handleStartGated(w.id)}
                               >
                                 <Play className="w-3 h-3 mr-2 fill-current" />
                                 Start This Workout
@@ -308,7 +390,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 Plan Workout
               </Button>
               <div className="my-2 text-xs text-stone-500">- OR -</div>
-              <Button variant="primary" onClick={() => handleStartWorkout('free')}>
+              <Button variant="primary" onClick={() => handleStartGated('free')}>
                 Start Free Session
               </Button>
             </div>
@@ -395,6 +477,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           })}
         </div>
       </section>
+
+      {/* Readiness check-in modal */}
+      {showReadinessModal && (
+        <ReadinessCheckIn
+          initial={todayReadiness ? {
+            sleep: todayReadiness.sleep,
+            skin: todayReadiness.skin,
+            energy: todayReadiness.energy,
+            stress: todayReadiness.stress,
+          } : undefined}
+          onSave={handleReadinessSaved}
+          onCancel={() => {
+            setShowReadinessModal(false);
+            setPendingWorkoutId(null);
+          }}
+        />
+      )}
+
+      {/* Low-readiness alternative suggestion */}
+      {suggestion && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-stone-900 w-full max-w-sm rounded-xl border border-amber-500/40 p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-bold text-amber-300">Low readiness</h3>
+              <button onClick={() => setSuggestion(null)} className="text-stone-500" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-stone-300 mb-4">
+              Your readiness is <span className="font-semibold text-amber-400">{suggestion.readiness.score}/10</span>.
+              Max-intensity work ({suggestion.workout?.name}) has a higher injury risk today.
+              Consider swapping to a lower-intensity session.
+            </p>
+            {suggestion.alternatives.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                {suggestion.alternatives.map(alt => (
+                  <button
+                    key={alt.id}
+                    onClick={() => handleSwapAlternative(alt)}
+                    className="w-full text-left p-3 rounded-lg border border-stone-700 hover:border-amber-500/50 bg-stone-800/60 transition-colors"
+                  >
+                    <div className="text-sm text-stone-100 font-medium">Swap to: {alt.name}</div>
+                    <div className="text-xs text-stone-400 mt-0.5">{alt.durationMinutes}m · {alt.type}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-stone-500 italic mb-4">
+                Try a lighter option like "No-Hangs 3×5" or "ARC 30 min".
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setSuggestion(null)}>
+                Cancel
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={handleProceedOriginal}>
+                Proceed anyway
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editingSession && (
