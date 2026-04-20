@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal, TrainingPlan } from '../types';
+import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal, TrainingPlan, Readiness } from '../types';
 import { generateId, formatDate } from '../utils';
 import { SEED_TRAINING_PLANS, buildPlanApplication } from '../data/trainingPlans';
 
@@ -45,7 +45,8 @@ interface StoreContextType {
   toggleScheduledWorkout: (scheduleId: string, completed: boolean) => void;
   copyWeekToNext: (startDateStr: string) => void;
   
-  startSession: (workoutId: string | null) => string;
+  startSession: (workoutId: string | null, readiness?: Readiness) => string;
+  setTodayReadiness: (readiness: Readiness) => Promise<void>;
   updateSession: (id: string, updates: Partial<SessionLog>) => void;
   endSession: (id: string) => void;
   deleteSession: (id: string) => void;
@@ -540,9 +541,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await batch.commit();
   };
 
-  const startSession = async (workoutId: string | null): Promise<string> => {
+  const startSession = async (workoutId: string | null, readiness?: Readiness): Promise<string> => {
     if (!user) return '';
     const id = generateId();
+    const effectiveReadiness =
+      readiness
+      ?? (settings.todayReadiness && settings.todayReadiness.date === formatDate(new Date())
+            ? settings.todayReadiness.readiness
+            : undefined);
     const newSession: SessionLog = {
       id,
       workoutId,
@@ -553,7 +559,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notes: '',
       skinCondition: 'Good',
       sleepQuality: 'Good',
-      climbs: []
+      climbs: [],
+      ...(effectiveReadiness ? { readiness: effectiveReadiness } : {})
     };
     await setDoc(doc(db, 'users', user.uid, 'sessions', id), newSession);
     await setDoc(doc(db, 'users', user.uid, 'meta', 'settings'), { 
@@ -612,6 +619,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         settings 
       }, { merge: true });
     }
+  };
+
+  const setTodayReadiness = async (readiness: Readiness) => {
+    if (!user) return;
+    const next: UserSettings = {
+      ...settings,
+      todayReadiness: { date: formatDate(new Date()), readiness }
+    };
+    setSettings(next);
+    await setDoc(
+      doc(db, 'users', user.uid, 'meta', 'settings'),
+      { settings: next },
+      { merge: true }
+    );
   };
 
   const updateSettings = async (updates: Partial<UserSettings>) => {
@@ -686,6 +707,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleScheduledWorkout,
       copyWeekToNext,
       startSession,
+      setTodayReadiness,
       updateSession,
       endSession,
       deleteSession,
