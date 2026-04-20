@@ -13,6 +13,13 @@ import { useAuth } from './AuthContext';
 import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal, TrainingPlan, Readiness } from '../types';
 import { generateId, formatDate } from '../utils';
 import { SEED_TRAINING_PLANS, buildPlanApplication } from '../data/trainingPlans';
+import {
+  WorkoutSchema,
+  ScheduledWorkoutSchema,
+  SessionLogSchema,
+  UserSettingsSchema,
+  parseDocs,
+} from '../schemas';
 
 interface StoreContextType {
   workouts: Workout[];
@@ -316,7 +323,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Seed default workouts for new users
           seedDefaultData(userId);
         } else {
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workout));
+          const data = parseDocs(WorkoutSchema, snapshot.docs, 'Workout') as Workout[];
           setWorkouts(data);
         }
       })
@@ -335,7 +342,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const scheduleRef = collection(db, 'users', userId, 'schedule');
     unsubscribers.push(
       onSnapshot(query(scheduleRef), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScheduledWorkout));
+        const data = parseDocs(ScheduledWorkoutSchema, snapshot.docs, 'ScheduledWorkout') as ScheduledWorkout[];
         setSchedule(data);
       })
     );
@@ -344,7 +351,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const sessionsRef = collection(db, 'users', userId, 'sessions');
     unsubscribers.push(
       onSnapshot(query(sessionsRef), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SessionLog));
+        const data = parseDocs(SessionLogSchema, snapshot.docs, 'SessionLog') as SessionLog[];
         setSessions(data);
       })
     );
@@ -368,16 +375,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setActiveSessionId(data.activeSessionId);
           }
           if (data.settings) {
-            // Migrate legacy 'V-Scale' value to new 'V' GradeSystem code.
-            const raw = data.settings as UserSettings & { defaultGradeSystem: string };
-            const migrated: UserSettings = {
+            // Migrate legacy 'V-Scale' value to new 'V' GradeSystem code,
+            // then validate with zod so a corrupt settings doc can't break
+            // the listener.
+            const raw = data.settings as Record<string, unknown>;
+            const migratedRaw = {
               ...raw,
               defaultGradeSystem:
-                (raw.defaultGradeSystem as string) === 'V-Scale'
+                raw.defaultGradeSystem === 'V-Scale'
                   ? 'V'
-                  : (raw.defaultGradeSystem as UserSettings['defaultGradeSystem']) || 'V',
+                  : raw.defaultGradeSystem || 'V',
             };
-            setSettings(migrated);
+            const parsed = UserSettingsSchema.safeParse(migratedRaw);
+            if (parsed.success) {
+              setSettings(parsed.data as UserSettings);
+            } else {
+              console.warn('Invalid UserSettings doc', snapshot.id, parsed.error.flatten());
+            }
           }
         }
         setIsLoaded(true);
