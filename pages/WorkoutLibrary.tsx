@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
-import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X, Sparkles, BookOpen, Calendar } from 'lucide-react';
+import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X, Sparkles, BookOpen, Calendar, Info, ExternalLink } from 'lucide-react';
 import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS, AppView, TrainingPlan, TrainingPhase } from '../types';
 import { cn } from '../utils';
 
@@ -69,6 +69,27 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
     });
     return grouped;
   }, [exercises, searchQuery]);
+
+  // Exercises whose category is missing or not one of the canonical values
+  // fall through to an "Other" bucket so user data is never hidden.
+  const otherExercises = useMemo(() => {
+    const knownCats = new Set<string>(Object.values(ExerciseCategory));
+    const filtered = searchQuery
+      ? exercises.filter(e =>
+          e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : exercises;
+    return filtered.filter(e => !e.category || !knownCats.has(e.category as string));
+  }, [exercises, searchQuery]);
+
+  // Track which exercises have their cues/mistakes detail expanded.
+  const [expandedExerciseDetails, setExpandedExerciseDetails] = useState<Set<string>>(new Set());
+  const toggleExerciseDetails = (id: string) => {
+    const next = new Set(expandedExerciseDetails);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setExpandedExerciseDetails(next);
+  };
 
   // Filter workouts by search
   const filteredWorkouts = useMemo(() => {
@@ -349,51 +370,14 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
                       {isExpanded && categoryExercises.length > 0 && (
                         <div className="border-t border-stone-700">
                           {categoryExercises.map(exercise => (
-                            <div
+                            <ExerciseCatalogRow
                               key={exercise.id}
-                              className="p-3 border-b border-stone-700/50 last:border-b-0 hover:bg-stone-700/30"
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-stone-100">{exercise.name}</span>
-                                    {exercise.difficulty && (
-                                      <span className={cn(
-                                        "text-[10px] px-1.5 py-0.5 rounded uppercase",
-                                        exercise.difficulty === 'Beginner' && "bg-green-500/20 text-green-400",
-                                        exercise.difficulty === 'Intermediate' && "bg-amber-500/20 text-amber-400",
-                                        exercise.difficulty === 'Advanced' && "bg-red-500/20 text-red-400"
-                                      )}>
-                                        {exercise.difficulty}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {exercise.description && (
-                                    <p className="text-xs text-stone-400 mt-1 line-clamp-1">{exercise.description}</p>
-                                  )}
-                                  <div className="flex gap-3 mt-1 text-[10px] text-stone-500">
-                                    {exercise.defaultSets && <span>{exercise.defaultSets} sets</span>}
-                                    {exercise.defaultReps && <span>{exercise.defaultReps} reps</span>}
-                                    {exercise.defaultDurationSeconds && <span>{exercise.defaultDurationSeconds}s</span>}
-                                    {exercise.timerConfig && <span className="text-amber-500">Has timer</span>}
-                                  </div>
-                                </div>
-                                <div className="flex gap-1 ml-2">
-                                  <button
-                                    onClick={() => deleteExercise(exercise.id)}
-                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleEditExercise(exercise)}
-                                    className="p-1.5 text-stone-400 hover:bg-stone-600 rounded"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
+                              exercise={exercise}
+                              expanded={expandedExerciseDetails.has(exercise.id)}
+                              onToggleDetails={() => toggleExerciseDetails(exercise.id)}
+                              onEdit={() => handleEditExercise(exercise)}
+                              onDelete={() => deleteExercise(exercise.id)}
+                            />
                           ))}
                         </div>
                       )}
@@ -406,6 +390,30 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
                     </div>
                   );
                 })}
+
+                {/* "Other" bucket for exercises without a recognised category */}
+                {otherExercises.length > 0 && (
+                  <div className="bg-stone-800 rounded-xl border border-stone-700 overflow-hidden">
+                    <div className="w-full flex items-center justify-between p-3">
+                      <span className="font-medium text-stone-200">Other</span>
+                      <span className="text-xs text-stone-500 bg-stone-700 px-2 py-0.5 rounded">
+                        {otherExercises.length}
+                      </span>
+                    </div>
+                    <div className="border-t border-stone-700">
+                      {otherExercises.map(exercise => (
+                        <ExerciseCatalogRow
+                          key={exercise.id}
+                          exercise={exercise}
+                          expanded={expandedExerciseDetails.has(exercise.id)}
+                          onToggleDetails={() => toggleExerciseDetails(exercise.id)}
+                          onEdit={() => handleEditExercise(exercise)}
+                          onDelete={() => deleteExercise(exercise.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -1021,3 +1029,138 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({
     </form>
   </div>
 );
+
+// --- Exercise Catalog Row ---------------------------------------------------
+// Renders a single exercise row with collapsible detail area exposing
+// catalog metadata (steps, cues, common mistakes, optional video link).
+interface ExerciseCatalogRowProps {
+  exercise: Exercise;
+  expanded: boolean;
+  onToggleDetails: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const ExerciseCatalogRow: React.FC<ExerciseCatalogRowProps> = ({
+  exercise,
+  expanded,
+  onToggleDetails,
+  onEdit,
+  onDelete,
+}) => {
+  const hasDetails = !!(
+    (exercise.steps && exercise.steps.length) ||
+    (exercise.cues && exercise.cues.length) ||
+    (exercise.commonMistakes && exercise.commonMistakes.length) ||
+    exercise.videoUrl
+  );
+
+  return (
+    <div className="p-3 border-b border-stone-700/50 last:border-b-0 hover:bg-stone-700/30">
+      <div className="flex justify-between items-start">
+        <button
+          type="button"
+          onClick={hasDetails ? onToggleDetails : undefined}
+          className={cn(
+            "flex-1 text-left",
+            hasDetails && "cursor-pointer"
+          )}
+          aria-expanded={expanded}
+        >
+          <div className="flex items-center gap-2">
+            {hasDetails && (
+              expanded
+                ? <ChevronDown className="w-3.5 h-3.5 text-stone-500" />
+                : <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            )}
+            <span className="font-medium text-stone-100">{exercise.name}</span>
+            {exercise.difficulty && (
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded uppercase",
+                exercise.difficulty === 'Beginner' && "bg-green-500/20 text-green-400",
+                exercise.difficulty === 'Intermediate' && "bg-amber-500/20 text-amber-400",
+                exercise.difficulty === 'Advanced' && "bg-red-500/20 text-red-400"
+              )}>
+                {exercise.difficulty}
+              </span>
+            )}
+          </div>
+          {exercise.description && (
+            <p className="text-xs text-stone-400 mt-1 line-clamp-2">{exercise.description}</p>
+          )}
+          <div className="flex gap-3 mt-1 text-[10px] text-stone-500">
+            {exercise.defaultSets && <span>{exercise.defaultSets} sets</span>}
+            {exercise.defaultReps && <span>{exercise.defaultReps} reps</span>}
+            {exercise.defaultDurationSeconds && <span>{exercise.defaultDurationSeconds}s</span>}
+            {exercise.targetDurationMinutes && <span>{exercise.targetDurationMinutes} min</span>}
+            {exercise.timerConfig && <span className="text-amber-500">Has timer</span>}
+            {exercise.videoUrl && <span className="text-sky-400">Video</span>}
+          </div>
+        </button>
+        <div className="flex gap-1 ml-2">
+          <button
+            onClick={onDelete}
+            className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+            aria-label="Delete exercise"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onEdit}
+            className="p-1.5 text-stone-400 hover:bg-stone-600 rounded"
+            aria-label="Edit exercise"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {hasDetails && expanded && (
+        <div className="mt-3 pl-5 space-y-3 text-xs">
+          {exercise.steps && exercise.steps.length > 0 && (
+            <div>
+              <div className="text-stone-300 font-medium mb-1 flex items-center gap-1">
+                <FileText className="w-3 h-3" /> Steps
+              </div>
+              <ol className="list-decimal list-outside pl-4 space-y-0.5 text-stone-400">
+                {exercise.steps.map((s, i) => <li key={i}>{s}</li>)}
+              </ol>
+            </div>
+          )}
+          {exercise.cues && exercise.cues.length > 0 && (
+            <div>
+              <div className="text-emerald-300 font-medium mb-1 flex items-center gap-1">
+                <Info className="w-3 h-3" /> Cues
+              </div>
+              <ul className="list-disc list-outside pl-4 space-y-0.5 text-stone-300">
+                {exercise.cues.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
+            </div>
+          )}
+          {exercise.commonMistakes && exercise.commonMistakes.length > 0 && (
+            <div>
+              <div className="text-rose-300 font-medium mb-1 flex items-center gap-1">
+                <X className="w-3 h-3" /> Common mistakes
+              </div>
+              <ul className="list-disc list-outside pl-4 space-y-0.5 text-stone-300">
+                {exercise.commonMistakes.map((m, i) => <li key={i}>{m}</li>)}
+              </ul>
+            </div>
+          )}
+          {exercise.videoUrl && (
+            <a
+              href={exercise.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300"
+            >
+              <ExternalLink className="w-3 h-3" /> Watch demo
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
