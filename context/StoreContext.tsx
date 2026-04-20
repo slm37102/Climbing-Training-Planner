@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, Goal, TrainingPlan, Readiness } from '../types';
+import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, Goal, TrainingPlan, Readiness, Project } from '../types';
 import { generateId, formatDate } from '../utils';
 import { SEED_TRAINING_PLANS, buildPlanApplication } from '../data/trainingPlans';
 import {
@@ -19,6 +19,7 @@ import {
   SessionLogSchema,
   UserSettingsSchema,
   GoalSchema,
+  ProjectSchema,
   parseDocs,
 } from '../schemas';
 import { EXERCISE_CATALOG } from '../data/exerciseCatalog';
@@ -29,6 +30,7 @@ interface StoreContextType {
   schedule: ScheduledWorkout[];
   sessions: SessionLog[];
   goals: Goal[];
+  projects: Project[];
   settings: UserSettings;
   activeSessionId: string | null;
   
@@ -48,6 +50,11 @@ interface StoreContextType {
   completeGoal: (id: string) => void;
   archiveGoal: (id: string) => void;
   deleteGoal: (id: string) => void;
+
+  // Project Actions (Beta Book)
+  addProject: (data: Omit<Project, 'id' | 'createdAt'>) => Promise<string>;
+  updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   
   scheduleWorkout: (date: string, workoutId: string) => void;
   removeScheduledWorkout: (scheduleId: string) => void;
@@ -123,6 +130,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [schedule, setSchedule] = useState<ScheduledWorkout[]>([]);
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings>({
     defaultGradeSystem: 'V',
@@ -140,6 +148,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSchedule([]);
       setSessions([]);
       setGoals([]);
+      setProjects([]);
       setActiveSessionId(null);
       setIsLoaded(false);
       return;
@@ -195,6 +204,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       onSnapshot(query(goalsRef), (snapshot) => {
         const data = parseDocs(GoalSchema, snapshot.docs, 'Goal') as Goal[];
         setGoals(data);
+      })
+    );
+
+    // Subscribe to projects (Beta Book)
+    const projectsRef = collection(db, 'users', userId, 'projects');
+    unsubscribers.push(
+      onSnapshot(query(projectsRef), (snapshot) => {
+        const data = parseDocs(ProjectSchema, snapshot.docs, 'Project') as Project[];
+        setProjects(data);
       })
     );
 
@@ -357,6 +375,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteGoal = async (id: string) => {
     if (!user) return;
     await deleteDoc(doc(db, 'users', user.uid, 'goals', id));
+  };
+
+  // --- Projects (Beta Book) ------------------------------------------------
+
+  const addProject = async (data: Omit<Project, 'id' | 'createdAt'>): Promise<string> => {
+    if (!user) return '';
+    // Use Firestore auto-id via doc(collection(...)) to match the action
+    // pattern elsewhere for new entities that don't already carry an id.
+    const ref = doc(collection(db, 'users', user.uid, 'projects'));
+    const createdAt = new Date().toISOString();
+    const project: Project = {
+      ...data,
+      id: ref.id,
+      createdAt,
+      ...(data.status === 'sent' && !data.sentAt ? { sentAt: createdAt } : {}),
+    };
+    const clean = JSON.parse(JSON.stringify(project));
+    await setDoc(ref, clean);
+    return ref.id;
+  };
+
+  const updateProject = async (id: string, patch: Partial<Project>): Promise<void> => {
+    if (!user) return;
+    const existing = projects.find((p) => p.id === id);
+    if (!existing) return;
+    const merged: Project = { ...existing, ...patch, id: existing.id };
+    // Auto-stamp sentAt the first time status flips to 'sent'.
+    if (patch.status === 'sent' && !merged.sentAt) {
+      merged.sentAt = new Date().toISOString();
+    }
+    const clean = JSON.parse(JSON.stringify(merged));
+    await setDoc(doc(db, 'users', user.uid, 'projects', id), clean);
+  };
+
+  const deleteProject = async (id: string): Promise<void> => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'projects', id));
   };
 
   const scheduleWorkout = async (date: string, workoutId: string) => {
@@ -559,6 +614,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       schedule,
       sessions,
       goals,
+      projects,
       settings,
       activeSessionId,
       addWorkout,
@@ -572,6 +628,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       completeGoal,
       archiveGoal,
       deleteGoal,
+      addProject,
+      updateProject,
+      deleteProject,
       scheduleWorkout,
       removeScheduledWorkout,
       toggleScheduledWorkout,

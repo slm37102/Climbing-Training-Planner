@@ -672,5 +672,293 @@ export const EXERCISE_CATALOG: Exercise[] = [
     ],
     cues: ['Never breathe hard', 'If pumped, drop the grade', 'Keep shoulders and jaw relaxed'],
     commonMistakes: ['Turning blocks into PE intervals', 'Chasing grade at the cost of continuity', 'Skipping hydration for a long session']
+  },
+
+  // ─── Additions (wave 5) ───────────────────────────────────────────────────
+  {
+    id: 'cat-band-pull-aparts',
+    name: 'Band Pull-Aparts',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    description: 'High-rep rear-delt and scapular retractor work with a light band. Great daily "shoulder floss" for pulling-heavy athletes.',
+    defaultSets: 3,
+    defaultReps: 20,
+    steps: [
+      'Hold a light band in both hands at shoulder height, arms extended',
+      'Pull the band apart by driving elbows back and out',
+      'Finish with the band touching your sternum, shoulder blades squeezed',
+      'Return slowly to the starting position without losing tension'
+    ],
+    cues: ['Lead with the mid-back, not the hands', 'Keep ribs down — don\'t arch', 'Slow return, no snap-back'],
+    commonMistakes: ['Shrugging the traps up', 'Bending elbows and turning it into a row', 'Using a band too heavy to finish all reps clean']
+  },
+  {
+    id: 'cat-finger-extensions',
+    name: 'Rubber Band Finger Extensions',
+    category: ExerciseCategory.ANTAGONIST,
+    difficulty: 'Beginner',
+    description: 'Opens the hand against resistance to train finger extensors — the antagonists climbers almost never use directly. Key for elbow and hand joint health.',
+    defaultSets: 3,
+    defaultReps: 25,
+    steps: [
+      'Loop a dedicated finger-extension band around all five fingertips',
+      'Start with fingers bunched, band slack',
+      'Open the hand fully, spreading fingers against the band',
+      'Close slowly over 2 seconds',
+      'Both hands each set'
+    ],
+    cues: ['Full open — fingers splayed, not just unbunched', 'Keep wrist neutral', 'Slow eccentric'],
+    commonMistakes: ['Band too stiff — thumb dominates', 'Rushing reps', 'Only doing it when pain already exists (train preventatively)']
+  },
+  {
+    id: 'cat-hollow-rocks',
+    name: 'Hollow Body Rocks',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Intermediate',
+    description: 'Dynamic progression of the hollow hold — rock back and forth while keeping the banana-shape rigid. Builds the tension reflex that transfers to steep climbing.',
+    defaultSets: 3,
+    defaultDurationSeconds: 30,
+    steps: [
+      'Start in a hollow body hold (arms overhead, legs low, lower back flat)',
+      'Without losing the shape, rock head-to-toe like a rocking chair',
+      'Drive the rock from the hips, not by bending at the waist',
+      'Breathe shallow; maintain tension through the full range',
+      'Continue smooth rocking for the target time'
+    ],
+    cues: ['Shape stays locked — only the whole body moves', 'Small controlled rocks, not big floppy ones', 'Lower back never leaves contact on the bottom phase'],
+    commonMistakes: ['Piking at the hips to generate momentum', 'Letting arms and legs drop out of position', 'Holding breath']
+  },
+  {
+    id: 'cat-side-plank-hip-dips',
+    name: 'Side Plank with Hip Dips',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Beginner',
+    description: 'Lateral core and hip stability through a dynamic side-plank variation — the obliques and QL drive stable footwork on slabs and arêtes.',
+    defaultSets: 3,
+    defaultReps: 12,
+    steps: [
+      'Side plank on forearm, feet stacked, body in a straight line',
+      'Lower the bottom hip toward the floor under control',
+      'Drive back up, pressing hip above the line into a slight crunch',
+      'Complete reps on one side, then switch',
+      'Keep the supporting shoulder packed the whole set'
+    ],
+    cues: ['Elbow directly under shoulder', 'Squeeze the top oblique at the top', 'Feet stay still — the trunk does the work'],
+    commonMistakes: ['Rolling forward or back out of the side-plank plane', 'Collapsing into the supporting shoulder', 'Bending at the waist instead of moving from the hip']
+  },
+  {
+    id: 'cat-l-sit-progression',
+    name: 'L-Sit Progression',
+    category: ExerciseCategory.CORE,
+    difficulty: 'Intermediate',
+    description: 'Tucked → one-leg → full L-sit holds on parallettes, rings, or the floor. Trains hip-flexor and anterior-core strength together with shoulder depression.',
+    defaultSets: 5,
+    defaultDurationSeconds: 15,
+    steps: [
+      'Support on parallettes or the floor, arms straight, shoulders depressed',
+      'Pick a level: tuck → one leg extended → full L',
+      'Lift hips so the full weight is on the hands',
+      'Hold 8–15 s with perfect form; stop before the shape breaks',
+      'Rest 90 s between holds, 5 sets total'
+    ],
+    cues: ['Shoulders pressed down away from ears', 'Toes pointed, legs squeezing together', 'Posterior tilt of the pelvis'],
+    commonMistakes: ['Shrugging up into the traps', 'Letting knees sag when they should be locked', 'Chasing duration at the cost of position']
+  },
+  {
+    id: 'cat-min-edge-hangs',
+    name: 'Minimum-Edge Hangs',
+    category: ExerciseCategory.LIMIT_STRENGTH,
+    difficulty: 'Advanced',
+    description: 'Bodyweight hangs on the smallest edge you can hold for the target time. Eva López-style recruitment work for experienced, uninjured fingers.',
+    defaultSets: 4,
+    defaultDurationSeconds: 10,
+    timerConfig: { workSeconds: 10, restSeconds: 0, reps: 1, sets: 4, restBetweenSetsSeconds: 180 },
+    pillar: 'MaxHang',
+    steps: [
+      'Thoroughly warm up fingers with pulleys and progressive edges',
+      'Find the smallest edge you can hang at bodyweight for ~10 s in half-crimp',
+      'Hang 10 s; feet come off cleanly, no dabbing',
+      'Rest 3 min between reps, 4–5 reps total',
+      'Stop the session the moment grip shape changes'
+    ],
+    cues: ['Lock the grip shape before lifting feet', 'Shoulders packed and active', 'Quality over duration'],
+    commonMistakes: ['Dropping the grip to drag or open mid-hang', 'Progressing edge size before the target time is solid', 'Using when fingers are pre-fatigued']
+  },
+  {
+    id: 'cat-pinch-block-lifts',
+    name: 'Pinch Block Lifts',
+    category: ExerciseCategory.LIMIT_STRENGTH,
+    difficulty: 'Intermediate',
+    description: 'Floor pick-ups on a wooden pinch block loaded with a dumbbell — scalable limit-strength work for thumb and lumbrical-driven pinch grip.',
+    defaultSets: 5,
+    defaultDurationSeconds: 10,
+    pillar: 'NoHangs',
+    steps: [
+      'Attach a dumbbell or kettlebell to a wooden pinch block via sling',
+      'Stand tall, shoulder packed, arm hanging at the side',
+      'Lift the block with a pinch grip — thumb on one face, fingers on the other',
+      'Hold 8–10 s, lower under control',
+      'Rest 2–3 min, alternate hands, 4–6 reps per hand'
+    ],
+    cues: ['Pinch width matches the climbing holds you care about', 'Thumb pad pressed hard, not crimped at the joint', 'Straight arm — this is a grip lift, not a row'],
+    commonMistakes: ['Letting the block twist in the hand', 'Bending the elbow to cheat', 'Jumping loads too fast — thumbs injure slowly and quietly']
+  },
+  {
+    id: 'cat-weighted-deadhangs',
+    name: 'Weighted Dead Hangs',
+    category: ExerciseCategory.LIMIT_STRENGTH,
+    difficulty: 'Advanced',
+    description: 'Two-arm max hangs with added weight on a 20 mm edge — the progression when bodyweight hangs stop feeling challenging.',
+    defaultSets: 5,
+    defaultDurationSeconds: 10,
+    timerConfig: { workSeconds: 10, restSeconds: 0, reps: 1, sets: 5, restBetweenSetsSeconds: 180 },
+    pillar: 'MaxHang',
+    steps: [
+      'Warm up fingers progressively (~15 min)',
+      'Add weight via weight belt or vest',
+      'Half-crimp or open-hand on 20 mm, hang 7–10 s at RPE 8–9',
+      'Rest 3 min between reps, 5 reps total',
+      'Increase load in ~2 kg steps once the top reps feel clean'
+    ],
+    cues: ['Lock grip shape before loading the hang', 'Shoulders engaged from the start', 'Same grip on every rep'],
+    commonMistakes: ['Jumping load in large chunks', 'Hanging passively between reps', 'Chasing weight while grip quality drops']
+  },
+  {
+    id: 'cat-board-limit-bouldering',
+    name: 'Board Limit Bouldering',
+    category: ExerciseCategory.POWER,
+    difficulty: 'Advanced',
+    description: 'Projecting limit problems on a steep symmetric board (MoonBoard, Kilter, Tension). Highest-quality stimulus for pulling power and body tension.',
+    defaultSets: 6,
+    defaultReps: 1,
+    targetDurationMinutes: 60,
+    pillar: 'LimitBoulder',
+    steps: [
+      'Warm up progressively on the same board — easy to medium problems',
+      'Pick 1–3 problems at or slightly above flash grade',
+      'Give each attempt maximum effort; rest ≥4 min between tries',
+      'Cap the session at ~60 min or when pulling power visibly drops',
+      'Log the move or body position that feels limiting'
+    ],
+    cues: ['Max intent on every pull', 'Don\'t chase a send — chase good attempts', 'Stop when moves slow down'],
+    commonMistakes: ['Going back-to-back with short rests (becomes PE)', 'Climbing too many "warm-up+1" problems instead of true limit moves', 'Training it when finger recovery is incomplete']
+  },
+  {
+    id: 'cat-deadpoint-drills',
+    name: 'Dynamic Deadpoint Drills',
+    category: ExerciseCategory.POWER,
+    difficulty: 'Intermediate',
+    description: 'Throws to a target hold timed so the hand arrives at the apex of the body\'s travel. Builds precision rate-of-force without pure campus risk.',
+    defaultSets: 5,
+    defaultReps: 3,
+    pillar: 'Power',
+    steps: [
+      'On a steep wall or board, set a start hold and a clearly-defined target',
+      'Engage feet and body tension, eyes locked on the target',
+      'Drive explosively and release as the body reaches the deadpoint',
+      'Stick the catch, lower off if needed',
+      'Rest 2–3 min between reps; 4–6 sets'
+    ],
+    cues: ['Drive from feet and hips, not arms', 'Catch at the apex — not on the way down', 'Precise target — no flinging'],
+    commonMistakes: ['Throwing too early or too late (you feel the hold rip out of the hand)', 'Tensing the grabbing arm before release', 'Ignoring foot placement']
+  },
+  {
+    id: 'cat-plyo-pullups',
+    name: 'Plyometric Pull-ups',
+    category: ExerciseCategory.POWER,
+    difficulty: 'Advanced',
+    description: 'Clap or hand-release pull-ups on a bar — brief airborne phase. Advanced upper-body plyometric for experienced pullers only.',
+    defaultSets: 4,
+    defaultReps: 3,
+    pillar: 'Power',
+    steps: [
+      'Only attempt with a strong weighted pull-up base (BW+20% for 5 clean reps)',
+      'Dead hang, shoulders packed',
+      'Pull as explosively as possible — release the bar briefly at the top',
+      'Catch with soft elbows, lower under control',
+      'Rest 3 min between sets; stop when speed drops'
+    ],
+    cues: ['Short contact time — in-and-out', 'Full lockout intent, not half-pull', 'Soft catch, loaded shoulders'],
+    commonMistakes: ['Attempting without a solid strength base', 'Crashing down on straight arms', 'Training them when upper body is fatigued']
+  },
+  {
+    id: 'cat-repeaters-submax',
+    name: 'Sub-Max Repeaters',
+    category: ExerciseCategory.STRENGTH_ENDURANCE,
+    difficulty: 'Intermediate',
+    description: 'Longer repeater sets (10/5 or 10/3) at moderate load — builds local forearm endurance without the max-intensity stress of 7/3s.',
+    defaultSets: 4,
+    defaultReps: 6,
+    timerConfig: { workSeconds: 10, restSeconds: 5, reps: 6, sets: 4, restBetweenSetsSeconds: 180 },
+    pillar: 'Repeaters',
+    steps: [
+      'Warm up fingers thoroughly',
+      'Pick a 20 mm edge and a load you can complete at RPE 7',
+      '10 s hang / 5 s rest × 6 — that\'s one set',
+      'Rest 3 min between sets, 4–6 sets total',
+      'Same grip shape on rep 1 and rep 6 — that\'s the success criterion'
+    ],
+    cues: ['Leave 1–2 reps in the tank per set', 'Controlled unload between reps', 'Consistent grip throughout the set'],
+    commonMistakes: ['Treating it as a max session — it\'s volume work', 'Grip collapsing on the last rep', 'Skipping warm-up']
+  },
+  {
+    id: 'cat-route-intervals',
+    name: 'Route Intervals (On/Off)',
+    category: ExerciseCategory.STRENGTH_ENDURANCE,
+    difficulty: 'Intermediate',
+    description: 'Alternating work/rest intervals on moderate routes — typical protocol: 4 min on the wall / 4 min rest × 4–6 rounds. Targets anaerobic-aerobic transition.',
+    defaultSets: 5,
+    defaultReps: 1,
+    targetDurationMinutes: 45,
+    pillar: 'Endurance',
+    steps: [
+      'Warm up with easy climbing and a route or two below target grade',
+      'Pick routes 2–3 grades below max that take ~4 min to climb',
+      'Climb one route (or traverse that duration); rest an equal period',
+      'Repeat 4–6 rounds total',
+      'Target a strong pump by the last round that recovers in the rest'
+    ],
+    cues: ['Match work duration between rounds — consistency matters', 'Shake out actively on rest, don\'t sit down', 'Scale grade down if pump doesn\'t clear'],
+    commonMistakes: ['Cherry-picking routes that are too short', 'Cutting rest when tired — defeats the protocol', 'Going to complete failure early and losing the back half']
+  },
+  {
+    id: 'cat-traverse-circuits',
+    name: 'Traverse Circuits',
+    category: ExerciseCategory.AEROBIC,
+    difficulty: 'Beginner',
+    description: 'Set traverse loops that chain back on themselves — climb for 3–8 min continuously, rest, repeat. Volume and capillarity with tight movement focus.',
+    defaultSets: 4,
+    defaultReps: 1,
+    targetDurationMinutes: 30,
+    pillar: 'Endurance',
+    steps: [
+      'Mark a traverse loop on a low-angle or slightly overhanging wall using easy holds',
+      'Climb the loop continuously for 3–8 min per round',
+      'Rest 2–3 min between rounds, 3–5 rounds total',
+      'Mix in down-climbing and reversing direction for variety',
+      'Stop before a real pump builds'
+    ],
+    cues: ['Quiet, precise feet', 'Relaxed grip — hang from the skeleton', 'Breathe through the nose'],
+    commonMistakes: ['Picking holds that push intensity into PE range', 'Skipping technique focus', 'Dropping off between rounds instead of down-climbing']
+  },
+  {
+    id: 'cat-volume-bouldering',
+    name: 'Low-Intensity Volume Bouldering',
+    category: ExerciseCategory.AEROBIC,
+    difficulty: 'Beginner',
+    description: 'High-volume session on easy-to-moderate boulders (4–6 grades below max) for technique, movement variety, and aerobic base.',
+    defaultSets: 1,
+    defaultDurationSeconds: 3600,
+    targetDurationMinutes: 60,
+    pillar: 'Endurance',
+    steps: [
+      'Pick problems 4–6 grades below max — none should feel hard',
+      'Climb 30–60 problems over 45–90 min with minimal rest',
+      'Rotate through different styles: slab, vert, overhang, slopers, crimps',
+      'Focus on perfect movement; do not project',
+      'Stop before pump or grip quality drops'
+    ],
+    cues: ['Send clean first go — no repeats when you blow a move', 'Vary styles aggressively', 'Keep transitions short'],
+    commonMistakes: ['Drifting up into near-max problems', 'Taking long socializing rests', 'Turning it into a redpoint session when an easy goes unsent']
   }
 ];

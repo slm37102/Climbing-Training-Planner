@@ -16,9 +16,11 @@ import { TimeRangeSelector } from '../components/stats/TimeRangeSelector';
 import { LoadChart } from '../components/stats/LoadChart';
 import { GoalCard } from '../components/goals/GoalCard';
 import { GoalForm } from '../components/goals/GoalForm';
-import { Plus, Target, Archive } from 'lucide-react';
+import { Plus, Target, Archive, Download } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { computeDailyLoads } from '../utils/load';
+import { buildSessionsCsv } from '../utils/csvExport';
+import { downloadBlob } from '../utils/downloadBlob';
 
 export const Progress: React.FC = () => {
   const { sessions, goals, settings, completeGoal, archiveGoal, deleteGoal } = useStore();
@@ -59,12 +61,28 @@ export const Progress: React.FC = () => {
     [sessions]
   );
 
+  const handleExportCsv = () => {
+    const csv = buildSessionsCsv(sessions);
+    downloadBlob(csv, `climbing-sessions-${todayStr}.csv`);
+  };
+
   return (
     <div className="pb-20 space-y-6">
       {/* Header with time range selector */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         <h1 className="text-2xl font-bold text-stone-100">Progress</h1>
-        <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportCsv}
+            disabled={sessions.length === 0}
+            aria-label="Export sessions as CSV"
+          >
+            <Download className="w-4 h-4" /> Export CSV
+          </Button>
+          <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
+        </div>
       </div>
       
       {/* Goals Section */}

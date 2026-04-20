@@ -357,6 +357,28 @@ export const isProjectGoal = (g: Goal): g is ProjectGoal => g.type === 'project'
 export const isCompGoal = (g: Goal): g is CompGoal => g.type === 'comp';
 export const isRehabGoal = (g: Goal): g is RehabGoal => g.type === 'rehab';
 
+// ---------------------------------------------------------------------------
+// Projects (Beta Book)
+// ---------------------------------------------------------------------------
+// A `Project` represents a specific route or boulder the user is working on,
+// with freeform beta notes, attempt tracking, and a status lifecycle
+// (projecting → sent / shelved). Stored under users/{uid}/projects/{id}.
+export type ProjectDiscipline = 'boulder' | 'sport' | 'trad';
+export type ProjectStatus = 'projecting' | 'sent' | 'shelved';
+
+export interface Project {
+  id: string;
+  name: string;
+  crag?: string;
+  grade?: string;
+  discipline: ProjectDiscipline;
+  status: ProjectStatus;
+  beta?: string;
+  attempts?: number;
+  createdAt: string;
+  sentAt?: string;
+}
+
 // Hangboard Protocol — a science-backed interval prescription that can be
 // turned into a concrete Workout. See data/hangboardProtocols.ts for the seed
 // catalog. A future PR may migrate this to a global Firestore collection so
