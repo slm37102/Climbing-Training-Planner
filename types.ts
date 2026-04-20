@@ -181,6 +181,16 @@ export interface Readiness {
   recordedAt: number; // epoch ms
 }
 
+export interface OnboardingProfile {
+  displayName?: string;
+  topBoulderGrade?: string;     // in chosen system
+  topRopeGrade?: string;        // in chosen system
+  primaryGoal?: 'fun' | 'plateau' | 'project' | 'compete' | 'injury';
+  frequencyPerWeek?: number;    // 2..6
+  injuryHistory?: 'none' | 'finger_past' | 'shoulder_past' | 'managing';
+  equipment?: { hangboard: boolean; board: boolean; freeWeights: boolean };
+}
+
 export interface UserSettings {
   defaultGradeSystem: GradeSystem;
   startOfWeek: 'Monday' | 'Sunday';
@@ -190,6 +200,8 @@ export interface UserSettings {
     date: string; // YYYY-MM-DD
     readiness: Readiness;
   };
+  onboardingComplete?: boolean;
+  profile?: OnboardingProfile;
 }
 
 // Goal Types
