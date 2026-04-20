@@ -2,9 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate, compareGrades } from '../utils';
-import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
+import { Play, Calendar, AlertCircle, CheckCircle, Clock, Trash2, Edit2, X, Save, Check, LogOut, Target, ChevronRight, Settings as SettingsIcon, HandMetal } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { SessionLog, WorkoutType, ExerciseLog, Readiness, Workout } from '../types';
+import { SessionLog, WorkoutType, ExerciseLog, Readiness, Workout, RehabGoal } from '../types';
+import { PulleyPopModal } from '../components/PulleyPopModal';
 import { GoalCard } from '../components/goals/GoalCard';
 import { DeloadBanner } from '../components/DeloadBanner';
 import { computeDailyLoads, shouldShowDeloadBanner } from '../utils/load';
@@ -20,7 +21,17 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const { schedule, workouts, sessions, exercises, goals, activeSessionId, settings, startSession, setTodayReadiness, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal } = useStore();
+  const { schedule, workouts, sessions, exercises, goals, activeSessionId, settings, startSession, setTodayReadiness, deleteSession, updateSession, toggleScheduledWorkout, completeGoal, archiveGoal, deleteGoal, addGoal } = useStore();
+  const [pulleyModalOpen, setPulleyModalOpen] = useState(false);
+
+  const handleCreateRehabGoal = (phase: RehabGoal['phase']) => {
+    addGoal({
+      type: 'rehab',
+      injury: 'A2 pulley (suspected)',
+      phase,
+      notes: 'Auto-created from the finger-injury self-check. This is general guidance, not medical advice — see a specialist.',
+    });
+  };
   const { user, logout } = useAuth();
   const todayStr = formatDate(new Date());
   
@@ -426,6 +437,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </section>
       )}
 
+      {/* Finger injury self-check entry-point */}
+      <section>
+        <Button
+          variant="outline"
+          className="w-full justify-start py-3"
+          onClick={() => setPulleyModalOpen(true)}
+        >
+          <HandMetal className="w-4 h-4 text-amber-500" />
+          <span className="flex-1 text-left">Finger injury? Self-check &amp; rehab guide</span>
+          <ChevronRight className="w-4 h-4 text-stone-500" />
+        </Button>
+      </section>
+
       {/* Quick Stats Grid */}
       <section className="grid grid-cols-2 gap-4">
         <div className="bg-stone-800 p-4 rounded-xl border border-stone-700">
@@ -584,6 +608,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
            </div>
         </div>
       )}
+
+      <PulleyPopModal
+        open={pulleyModalOpen}
+        onClose={() => setPulleyModalOpen(false)}
+        onCreateRehabGoal={handleCreateRehabGoal}
+      />
     </div>
   );
 };
