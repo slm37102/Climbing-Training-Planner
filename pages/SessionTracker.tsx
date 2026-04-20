@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
 import { Play, Pause, Check, RotateCcw, Timer, Layers, ChevronDown, ChevronRight, Dumbbell, TrendingUp, Target } from 'lucide-react';
 import { grades, cn, generateId, playAudioCue, initAudioContext } from '../utils';
+import { useCountdown } from '../hooks/useCountdown';
+import { useWakeLock } from '../hooks/useWakeLock';
 import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise, GradeTarget, StrengthTarget } from '../types';
 import { convertGrade, gradeRank, listGrades, GRADE_SYSTEMS, GradeSystem } from '../utils/grades';
 import { computeOverload, inferPillarFromName, didExceedTarget, OverloadTarget } from '../utils/progression';
@@ -36,9 +38,17 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   
   // Standard Rest Timer State
   const [timerMode, setTimerMode] = useState<'none' | 'rest' | 'interval'>('none');
-  const [timerTime, setTimerTime] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [initialTimerValue, setInitialTimerValue] = useState(120);
+  // Timestamp-driven countdown: segmentMs is the current segment duration;
+  // segmentKey bumps to force a reset when consecutive segments share a
+  // duration (e.g. two back-to-back work reps).
+  const [segmentMs, setSegmentMs] = useState(0);
+  const [segmentKey, setSegmentKey] = useState(0);
+  const startSegment = (seconds: number) => {
+    setSegmentMs(seconds * 1000);
+    setSegmentKey(k => k + 1);
+  };
 
   // Interval Timer State
   const [intervalPhase, setIntervalPhase] = useState<'Work' | 'Rest' | 'Set Rest' | 'Done'>('Work');
@@ -160,7 +170,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       setTotalSets(workout.timerConfig.sets || 1);
       setRestBetweenSets(workout.timerConfig.restBetweenSetsSeconds || 120);
       
-      setTimerTime(workout.timerConfig.workSeconds);
+      startSegment(workout.timerConfig.workSeconds);
       setIntervalPhase('Work');
       setIsTimerRunning(false); // Manual start requested
     }
@@ -175,44 +185,53 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
     return () => clearInterval(interval);
   }, [session]);
 
-  // General Timer Logic Loop
+  // Timestamp-based countdown (resilient to backgrounding + setInterval throttling).
+  const handleTimerComplete = () => {
+    if (timerMode === 'rest') {
+      setIsTimerRunning(false);
+      playAudioCue('restComplete');
+    } else if (timerMode === 'interval') {
+      handleIntervalTransition();
+    }
+  };
+  const { remainingMs } = useCountdown({
+    durationMs: segmentMs,
+    running: isTimerRunning,
+    resetKey: segmentKey,
+    onComplete: handleTimerComplete,
+  });
+  const timerTime = Math.ceil(remainingMs / 1000);
+
+  // Keep the display awake while a timer is actively ticking.
+  useWakeLock(isTimerRunning);
+
+  // Countdown beeps at 3, 2, 1 seconds remaining (once per second).
+  const lastBeepRef = useRef<number | null>(null);
   useEffect(() => {
-      let interval: ReturnType<typeof setInterval>;
-      
-      if (isTimerRunning && timerTime > 0) {
-          interval = setInterval(() => {
-              setTimerTime(prev => {
-                  // Play countdown beep for last 3 seconds
-                  if (prev <= 4 && prev > 1) {
-                      playAudioCue('countdown');
-                  }
-                  return prev - 1;
-              });
-          }, 1000);
-      } else if (timerTime === 0 && isTimerRunning) {
-          // Timer finished
-          if (timerMode === 'rest') {
-             setIsTimerRunning(false);
-             playAudioCue('restComplete');
-          } else if (timerMode === 'interval') {
-             handleIntervalTransition();
-          }
-      }
-      return () => clearInterval(interval);
-  }, [isTimerRunning, timerTime, timerMode]);
+    if (!isTimerRunning) {
+      lastBeepRef.current = null;
+      return;
+    }
+    if (timerTime >= 1 && timerTime <= 3 && lastBeepRef.current !== timerTime) {
+      playAudioCue('countdown');
+      lastBeepRef.current = timerTime;
+    } else if (timerTime > 3) {
+      lastBeepRef.current = null;
+    }
+  }, [timerTime, isTimerRunning]);
 
   const handleIntervalTransition = () => {
     if (intervalPhase === 'Work') {
         if (currentRep < totalReps) {
              playAudioCue('rest');
              setIntervalPhase('Rest');
-             setTimerTime(restDuration);
+             startSegment(restDuration);
         } else {
              // Set finished
              if (currentSet < totalSets) {
                  playAudioCue('setRest');
                  setIntervalPhase('Set Rest');
-                 setTimerTime(restBetweenSets);
+                 startSegment(restBetweenSets);
              } else {
                  playAudioCue('complete');
                  setIntervalPhase('Done');
@@ -222,12 +241,12 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
     } else if (intervalPhase === 'Rest') {
         playAudioCue('work');
         setIntervalPhase('Work');
-        setTimerTime(workDuration);
+        startSegment(workDuration);
         setCurrentRep(prev => prev + 1);
     } else if (intervalPhase === 'Set Rest') {
         playAudioCue('work');
         setIntervalPhase('Work');
-        setTimerTime(workDuration);
+        startSegment(workDuration);
         setCurrentRep(1);
         setCurrentSet(prev => prev + 1);
     }
@@ -238,7 +257,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       setCurrentRep(1);
       setCurrentSet(1);
       setIntervalPhase('Work');
-      setTimerTime(workDuration);
+      startSegment(workDuration);
       setIsTimerRunning(false);
   };
 
@@ -260,7 +279,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
       initAudioContext(); // Initialize audio on user interaction
       setTimerMode('rest');
       setInitialTimerValue(seconds);
-      setTimerTime(seconds);
+      startSegment(seconds);
       setIsTimerRunning(true);
   };
 
