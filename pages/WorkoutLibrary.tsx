@@ -1,17 +1,15 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
 import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X, Sparkles, BookOpen, Calendar, Info, ExternalLink } from 'lucide-react';
-import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS, AppView, TrainingPlan, TrainingPhase } from '../types';
+import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS, TrainingPlan, TrainingPhase } from '../types';
 import { cn } from '../utils';
 
 type TabType = 'workouts' | 'exercises' | 'plans';
 
-interface WorkoutLibraryProps {
-  onNavigate?: (view: AppView) => void;
-}
-
-export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) => {
+export const WorkoutLibrary: React.FC = () => {
+  const navigate = useNavigate();
   const { workouts, exercises, addWorkout, updateWorkout, deleteWorkout, addExercise, updateExercise, deleteExercise, trainingPlans, applyTrainingPlan, settings } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>('workouts');
   const [searchQuery, setSearchQuery] = useState('');
@@ -263,10 +261,10 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
         <>
           {!isCreatingWorkout ? (
             <>
-              {onNavigate && (
+              {(
                 <button
                   type="button"
-                  onClick={() => onNavigate('HANGBOARD_PICKER')}
+                  onClick={() => navigate('/hangboards')}
                   className="w-full text-left bg-gradient-to-r from-amber-500/10 to-stone-800 border border-amber-500/40 rounded-xl p-3 flex items-center gap-3 hover:border-amber-500 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">

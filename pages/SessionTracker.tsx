@@ -8,6 +8,7 @@ import { useWakeLock } from '../hooks/useWakeLock';
 import { ClimbLog, Workout, WorkoutType, ExerciseLog, Exercise, GradeTarget, StrengthTarget } from '../types';
 import { convertGrade, gradeRank, listGrades, GRADE_SYSTEMS, GradeSystem } from '../utils/grades';
 import { computeOverload, inferPillarFromName, didExceedTarget, OverloadTarget } from '../utils/progression';
+import { Term } from '../components/Term';
 
 // State for tracking exercise progress during session
 interface ExerciseProgress {
@@ -71,6 +72,18 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   const [attempts, setAttempts] = useState(1);
   const [rpe, setRpe] = useState(5);
   const [notes, setNotes] = useState('');
+
+  // Conditions & route (collapsible, persists between climbs in a session)
+  const [conditionsExpanded, setConditionsExpanded] = useState(false);
+  const [climbLocation, setClimbLocation] = useState<'gym' | 'outdoor' | ''>('');
+  const [routeName, setRouteName] = useState('');
+  const [crag, setCrag] = useState('');
+  const [rockType, setRockType] = useState('');
+  const [tempC, setTempC] = useState<string>('');
+  const [humidityPct, setHumidityPct] = useState<string>('');
+  const [sendStyle, setSendStyle] = useState<
+    '' | 'onsight' | 'flash' | 'redpoint' | 'repeat' | 'project' | 'attempt'
+  >('');
 
   // Exercise tracking state
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([]);
@@ -315,13 +328,24 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
   const addClimb = (sent: boolean) => {
       if (!session) return;
       const isFlash = attempts === 1;
+      const tempNum = tempC === '' ? undefined : Number(tempC);
+      const humidityNum = humidityPct === '' ? undefined : Number(humidityPct);
       const newClimb: ClimbLog = {
           id: generateId(),
           grade: selectedGrade,
           gradeSystem: selectedSystem,
           attempts: attempts,
           sent,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          ...(climbLocation ? { location: climbLocation } : {}),
+          ...(routeName.trim() ? { routeName: routeName.trim() } : {}),
+          ...(climbLocation === 'outdoor' && crag.trim() ? { crag: crag.trim() } : {}),
+          ...(climbLocation === 'outdoor' && rockType ? { rockType } : {}),
+          ...(tempNum !== undefined && !Number.isNaN(tempNum) ? { tempC: tempNum } : {}),
+          ...(humidityNum !== undefined && !Number.isNaN(humidityNum)
+            ? { humidityPct: humidityNum }
+            : {}),
+          ...(sendStyle ? { sendStyle } : {}),
       };
       updateSession(session.id, { climbs: [newClimb, ...session.climbs] });
 
@@ -778,6 +802,193 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
                     </div>
                 </div>
 
+                {/* Conditions & route (collapsible, collapsed by default) */}
+                <div className="mb-4 border-t border-stone-700 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setConditionsExpanded(v => !v)}
+                    aria-expanded={conditionsExpanded}
+                    className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-200"
+                  >
+                    {conditionsExpanded ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                    Conditions & route
+                  </button>
+                  {conditionsExpanded && (
+                    <div data-testid="conditions-section" className="mt-3 space-y-3">
+                      {/* Indoor / Outdoor segmented control */}
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">
+                          Location
+                        </div>
+                        <div className="flex rounded-lg overflow-hidden border border-stone-700 text-xs">
+                          {(['gym', 'outdoor'] as const).map(opt => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() =>
+                                setClimbLocation(prev => (prev === opt ? '' : opt))
+                              }
+                              aria-pressed={climbLocation === opt}
+                              className={cn(
+                                'flex-1 py-1.5 capitalize',
+                                climbLocation === opt
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-stone-900 text-stone-300 hover:bg-stone-800'
+                              )}
+                            >
+                              {opt === 'gym' ? 'Indoor' : 'Outdoor'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Outdoor-only: rock type + crag */}
+                      {climbLocation === 'outdoor' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label
+                              htmlFor="climb-rock-type"
+                              className="text-[10px] uppercase tracking-wide text-stone-500 block mb-1"
+                            >
+                              Rock type
+                            </label>
+                            <select
+                              id="climb-rock-type"
+                              value={rockType}
+                              onChange={e => setRockType(e.target.value)}
+                              className="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-100"
+                            >
+                              <option value="">—</option>
+                              <option value="granite">Granite</option>
+                              <option value="limestone">Limestone</option>
+                              <option value="sandstone">Sandstone</option>
+                              <option value="gneiss">Gneiss</option>
+                              <option value="basalt">Basalt</option>
+                              <option value="quartzite">Quartzite</option>
+                              <option value="conglomerate">Conglomerate</option>
+                              <option value="other">Other</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="climb-crag"
+                              className="text-[10px] uppercase tracking-wide text-stone-500 block mb-1"
+                            >
+                              Crag
+                            </label>
+                            <input
+                              id="climb-crag"
+                              type="text"
+                              value={crag}
+                              onChange={e => setCrag(e.target.value)}
+                              placeholder="e.g. Fontainebleau"
+                              className="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-100"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Route name (always shown) */}
+                      <div>
+                        <label
+                          htmlFor="climb-route-name"
+                          className="text-[10px] uppercase tracking-wide text-stone-500 block mb-1"
+                        >
+                          Route name
+                        </label>
+                        <input
+                          id="climb-route-name"
+                          type="text"
+                          value={routeName}
+                          onChange={e => setRouteName(e.target.value)}
+                          placeholder='e.g. "The Nose"'
+                          className="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-100"
+                        />
+                      </div>
+
+                      {/* Send style segmented control */}
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">
+                          Send style
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 text-[11px]">
+                          {(
+                            [
+                              'onsight',
+                              'flash',
+                              'redpoint',
+                              'repeat',
+                              'project',
+                              'attempt',
+                            ] as const
+                          ).map(opt => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() =>
+                                setSendStyle(prev => (prev === opt ? '' : opt))
+                              }
+                              aria-pressed={sendStyle === opt}
+                              className={cn(
+                                'py-1.5 rounded border capitalize',
+                                sendStyle === opt
+                                  ? 'bg-amber-600 text-white border-amber-500'
+                                  : 'bg-stone-900 text-stone-300 border-stone-700 hover:bg-stone-800'
+                              )}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Temp + humidity */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label
+                            htmlFor="climb-temp"
+                            className="text-[10px] uppercase tracking-wide text-stone-500 block mb-1"
+                          >
+                            Temp (°C)
+                          </label>
+                          <input
+                            id="climb-temp"
+                            type="number"
+                            inputMode="numeric"
+                            min={-20}
+                            max={40}
+                            value={tempC}
+                            onChange={e => setTempC(e.target.value)}
+                            className="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-100"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="climb-humidity"
+                            className="text-[10px] uppercase tracking-wide text-stone-500 block mb-1"
+                          >
+                            Humidity (%)
+                          </label>
+                          <input
+                            id="climb-humidity"
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={100}
+                            value={humidityPct}
+                            onChange={e => setHumidityPct(e.target.value)}
+                            className="w-full bg-stone-900 border border-stone-700 rounded px-2 py-1.5 text-xs text-stone-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => addClimb(false)}>
                         Fail
@@ -823,7 +1034,7 @@ export const SessionTracker: React.FC<{ onComplete: () => void }> = ({ onComplet
 
           {/* End of Session inputs */}
           <div className="bg-stone-800/50 p-4 rounded-xl space-y-3">
-             <label className="text-xs text-stone-400 block">Session RPE (1-10)</label>
+             <label className="text-xs text-stone-400 block">Session <Term id="rpe">RPE</Term> (1-10)</label>
              <input 
                type="range" min="1" max="10" 
                value={rpe} onChange={(e) => setRpe(parseInt(e.target.value))} 

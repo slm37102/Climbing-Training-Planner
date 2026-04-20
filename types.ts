@@ -146,6 +146,15 @@ export interface ScheduledWorkout {
 
 import type { GradeSystem } from './utils/grades';
 
+export type ClimbLocation = 'gym' | 'outdoor';
+export type SendStyle =
+  | 'onsight'
+  | 'flash'
+  | 'redpoint'
+  | 'repeat'
+  | 'project'
+  | 'attempt';
+
 export interface ClimbLog {
   id: string;
   grade: string;
@@ -156,6 +165,15 @@ export interface ClimbLog {
   attempts: number;
   sent: boolean;
   timestamp: number;
+  // Optional indoor/outdoor context. All fields are additive and backward-
+  // compatible — older logs without them remain valid.
+  location?: ClimbLocation;
+  routeName?: string;
+  crag?: string;
+  rockType?: string;
+  tempC?: number;
+  humidityPct?: number;
+  sendStyle?: SendStyle;
 }
 
 export interface ExerciseLog {
@@ -221,10 +239,33 @@ export interface UserSettings {
   profile?: OnboardingProfile;
 }
 
-// Goal Types
-export type GoalType = 'grade' | 'strength';
+// ---------------------------------------------------------------------------
+// Goals
+// ---------------------------------------------------------------------------
+// `Goal` is a discriminated union over `type`. Six variants are supported:
+// grade, volume, strength, project, comp, rehab. Each variant carries its
+// own typed fields plus common fields (`id`, `achieved?`, `notes?`,
+// `deadline?`).
+//
+// Legacy fields (`title?`, `description?`, `status?`, `target?`, `targetDate?`,
+// `createdAt?`, `completedAt?`) remain on the shared `GoalCommon` base so
+// code written before the union refactor (notably SessionTracker and
+// Progress) continues to type-check and behave correctly. New code should
+// prefer the spec fields (`deadline`, `achieved`, `notes`) and the typed
+// per-variant fields over the legacy ones.
+//
+// Note: the spec sketch names the numeric target on a volume goal `target`.
+// Because `target?: GradeTarget | StrengthTarget` already lives on
+// `GoalCommon` for back-compat, we store the numeric value on
+// `targetCount` instead. `GoalSchema` in `schemas/index.ts` accepts either
+// spelling on read and normalizes to `targetCount`.
+// ---------------------------------------------------------------------------
+
+export type GoalType = 'grade' | 'volume' | 'strength' | 'project' | 'comp' | 'rehab';
 export type GoalStatus = 'active' | 'completed' | 'archived';
 
+// Legacy target shapes, pre-discriminated-union. Preserved so existing docs
+// and code paths keep working.
 export interface GradeTarget {
   type: 'grade';
   grade: string;              // "V6", "5.12a"
@@ -233,25 +274,88 @@ export interface GradeTarget {
 
 export interface StrengthTarget {
   type: 'strength';
-  exerciseId?: string;        // optional link to exercise
+  exerciseId?: string;
   metric: 'added_weight' | 'hold_time' | 'edge_depth';
   targetValue: number;
   unit: string;               // "kg", "seconds", "mm"
 }
 
-export interface Goal {
+interface GoalCommon {
   id: string;
-  title: string;
+  // New unified fields (spec)
+  deadline?: string;
+  achieved?: boolean;
+  notes?: string;
+  // Legacy fields — optional, populated for back-compat when it's cheap.
+  title?: string;
   description?: string;
-  type: GoalType;
-  target: GradeTarget | StrengthTarget;
-  targetDate?: string;        // ISO date, optional
-  createdAt: string;
+  status?: GoalStatus;
+  target?: GradeTarget | StrengthTarget;
+  targetDate?: string;
+  createdAt?: string;
   completedAt?: string;
-  status: GoalStatus;
 }
 
-export type AppView = 'DASHBOARD' | 'PLANNER' | 'WORKOUTS' | 'SESSION' | 'PROGRESS' | 'HANGBOARD_PICKER' | 'SETTINGS';
+export interface GradeGoal extends GoalCommon {
+  type: 'grade';
+  targetGrade: string;
+  discipline: 'boulder' | 'sport' | 'trad';
+}
+
+export interface VolumeGoal extends GoalCommon {
+  type: 'volume';
+  /** Numeric target. Spec calls this `target`; stored as `targetCount` to
+   * avoid colliding with the legacy object-shaped `target` field on the
+   * common base. `GoalSchema` accepts either spelling at read time. */
+  targetCount: number;
+  unit: 'sessions' | 'hours' | 'climbs';
+  window: 'weekly' | 'monthly' | 'block';
+}
+
+export interface StrengthGoal extends GoalCommon {
+  type: 'strength';
+  metric: 'maxHang' | 'weightedPullup' | 'oneArmHang' | 'custom';
+  targetKg?: number;
+  durationSec?: number;
+  customLabel?: string;
+}
+
+export interface ProjectGoal extends GoalCommon {
+  type: 'project';
+  routeName: string;
+  crag?: string;
+  grade?: string;
+}
+
+export interface CompGoal extends GoalCommon {
+  type: 'comp';
+  compName: string;
+  date: string;
+  placementTarget?: string;
+}
+
+export interface RehabGoal extends GoalCommon {
+  type: 'rehab';
+  injury: string;
+  phase: 'acute' | 'sub-acute' | 'return-to-climb';
+  clearedBy?: string;
+}
+
+export type Goal =
+  | GradeGoal
+  | VolumeGoal
+  | StrengthGoal
+  | ProjectGoal
+  | CompGoal
+  | RehabGoal;
+
+// Type guards — prefer these over `as` casts when narrowing a `Goal`.
+export const isGradeGoal = (g: Goal): g is GradeGoal => g.type === 'grade';
+export const isVolumeGoal = (g: Goal): g is VolumeGoal => g.type === 'volume';
+export const isStrengthGoal = (g: Goal): g is StrengthGoal => g.type === 'strength';
+export const isProjectGoal = (g: Goal): g is ProjectGoal => g.type === 'project';
+export const isCompGoal = (g: Goal): g is CompGoal => g.type === 'comp';
+export const isRehabGoal = (g: Goal): g is RehabGoal => g.type === 'rehab';
 
 // Hangboard Protocol — a science-backed interval prescription that can be
 // turned into a concrete Workout. See data/hangboardProtocols.ts for the seed

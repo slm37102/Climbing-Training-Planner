@@ -18,6 +18,7 @@ import {
   ScheduledWorkoutSchema,
   SessionLogSchema,
   UserSettingsSchema,
+  GoalSchema,
   parseDocs,
 } from '../schemas';
 import { EXERCISE_CATALOG } from '../data/exerciseCatalog';
@@ -192,7 +193,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const goalsRef = collection(db, 'users', userId, 'goals');
     unsubscribers.push(
       onSnapshot(query(goalsRef), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+        const data = parseDocs(GoalSchema, snapshot.docs, 'Goal') as Goal[];
         setGoals(data);
       })
     );
@@ -289,14 +290,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addGoal = async (goal: Omit<Goal, 'id' | 'createdAt' | 'status'>) => {
     if (!user) return;
     const id = generateId();
-    const newGoal: Goal = {
-      ...goal,
+    const createdAt = new Date().toISOString();
+    // Treat the incoming shape loosely while we attach bookkeeping fields
+    // and legacy mirrors. Firestore persists plain JSON; the zod schema
+    // validates on read.
+    const base: Record<string, unknown> = {
+      ...(goal as unknown as Record<string, unknown>),
       id,
-      createdAt: new Date().toISOString(),
-      status: 'active'
+      createdAt,
+      status: 'active',
+      achieved: (goal as { achieved?: boolean }).achieved ?? false,
     };
-    // Remove undefined values for Firestore
-    const cleanGoal = JSON.parse(JSON.stringify(newGoal));
+    // Populate legacy mirror fields on grade/strength goals so pre-union
+    // consumers (e.g. SessionTracker's auto-completion) keep working.
+    if (base.type === 'grade') {
+      base.title = base.title ?? `Send ${String(base.targetGrade ?? '')}`.trim();
+      if (!base.target && typeof base.targetGrade === 'string') {
+        base.target = { type: 'grade', grade: base.targetGrade, style: 'send' };
+      }
+    } else if (base.type === 'strength') {
+      base.title = base.title ?? (base.customLabel as string | undefined) ?? 'Strength goal';
+    } else if (base.type === 'volume') {
+      base.title = base.title ?? `${base.targetCount} ${base.unit} / ${base.window}`;
+    } else if (base.type === 'project') {
+      base.title = base.title ?? `Project: ${base.routeName}`;
+    } else if (base.type === 'comp') {
+      base.title = base.title ?? String(base.compName);
+    } else if (base.type === 'rehab') {
+      base.title = base.title ?? `Rehab: ${base.injury}`;
+    }
+    const cleanGoal = JSON.parse(JSON.stringify(base));
     await setDoc(doc(db, 'users', user.uid, 'goals', id), cleanGoal);
   };
 
@@ -313,6 +336,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (goal) {
       await setDoc(doc(db, 'users', user.uid, 'goals', id), {
         ...goal,
+        achieved: true,
         status: 'completed',
         completedAt: new Date().toISOString()
       });

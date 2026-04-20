@@ -5,6 +5,7 @@ import {
   computeACWR,
   addDays,
 } from '../../utils/load';
+import { Term } from '../Term';
 
 interface LoadChartProps {
   daily: LoadPoint[];
@@ -176,11 +177,11 @@ export const LoadChart: React.FC<LoadChartProps> = ({
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-400 mt-3">
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-3 bg-amber-400 rounded-sm" />
-              Weekly sRPE
+              Weekly <Term id="srpe">sRPE</Term>
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-0.5 bg-stone-200" />
-              ACWR
+              <Term id="acwr">ACWR</Term>
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block w-3 h-3 bg-green-500/30" />
@@ -196,7 +197,7 @@ export const LoadChart: React.FC<LoadChartProps> = ({
             </span>
           </div>
           <p className="text-[11px] text-stone-500 italic mt-2">
-            ACWR is guidance, not diagnosis (Impellizzeri 2020).
+            <Term id="acwr">ACWR</Term> is guidance, not diagnosis (Impellizzeri 2020).
           </p>
         </>
       )}
