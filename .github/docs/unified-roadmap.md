@@ -62,19 +62,21 @@ Add later: **Beta Book** (projecter journal), **Coach Mode** (read-only share), 
 
 ### P0 — ship in order
 
-| # | Area | Issue | Depends on |
-|---|---|---|---|
-| 1 | Security | Firestore rules ([#3](https://github.com/slm37102/Climbing-Training-Planner/issues/3)) | — |
-| 2 | Security | Env-var Firebase config ([#6](https://github.com/slm37102/Climbing-Training-Planner/issues/6)) | — |
-| 3 | Correctness | `crypto.randomUUID` IDs ([#5](https://github.com/slm37102/Climbing-Training-Planner/issues/5)) | — |
-| 4 | Correctness | Grade ranking / V10 ordering ([#4](https://github.com/slm37102/Climbing-Training-Planner/issues/4)) | — |
-| 5 | Content | Grade-system preference + conversion (V/Font/YDS/French/UIAA) | #4 |
-| 6 | Content | 7 seeded training-plan templates (+ `TrainingPlan` entity, `phase` field) | — |
-| 7 | Content | Hangboard protocol as first-class entity | — |
-| 8 | Content / UX | Onboarding wizard → auto-assign plan | #5, #6 |
-| 9 | UX | Pre-session readiness check-in | — |
-| 10 | Content | Progressive-overload prompts on active workout | — |
-| 11 | Content / Safety | Training load + ACWR chart + deload banner | — |
+| # | Area | Issue | Status | PR |
+|---|---|---|---|---|
+| 1 | Security | Firestore rules ([#3](https://github.com/slm37102/Climbing-Training-Planner/issues/3)) | ✅ | [#16](https://github.com/slm37102/Climbing-Training-Planner/pull/16) |
+| 2 | Security | Env-var Firebase config ([#6](https://github.com/slm37102/Climbing-Training-Planner/issues/6)) | ✅ | [#17](https://github.com/slm37102/Climbing-Training-Planner/pull/17) |
+| 3 | Correctness | `crypto.randomUUID` IDs ([#5](https://github.com/slm37102/Climbing-Training-Planner/issues/5)) | ✅ | [#15](https://github.com/slm37102/Climbing-Training-Planner/pull/15) |
+| 4 | Correctness | Grade ranking / V10 ordering ([#4](https://github.com/slm37102/Climbing-Training-Planner/issues/4)) | ✅ | [#15](https://github.com/slm37102/Climbing-Training-Planner/pull/15) |
+| 5 | Content | Grade-system preference + conversion ([#7](https://github.com/slm37102/Climbing-Training-Planner/issues/7)) | ✅ | [#19](https://github.com/slm37102/Climbing-Training-Planner/pull/19) |
+| 6 | Content | 7 seeded training-plan templates ([#11](https://github.com/slm37102/Climbing-Training-Planner/issues/11)) | ✅ | [#24](https://github.com/slm37102/Climbing-Training-Planner/pull/24) |
+| 7 | Content | Hangboard protocol as first-class entity ([#12](https://github.com/slm37102/Climbing-Training-Planner/issues/12)) | ✅ | [#18](https://github.com/slm37102/Climbing-Training-Planner/pull/18) |
+| 8 | Content / UX | Onboarding wizard → auto-assign plan ([#8](https://github.com/slm37102/Climbing-Training-Planner/issues/8)) | ✅ | [#25](https://github.com/slm37102/Climbing-Training-Planner/pull/25) |
+| 9 | UX | Pre-session readiness check-in ([#9](https://github.com/slm37102/Climbing-Training-Planner/issues/9)) | ✅ | [#22](https://github.com/slm37102/Climbing-Training-Planner/pull/22) |
+| 10 | Content | Progressive-overload prompts on active workout ([#10](https://github.com/slm37102/Climbing-Training-Planner/issues/10)) | ✅ | [#23](https://github.com/slm37102/Climbing-Training-Planner/pull/23) |
+| 11 | Content / Safety | Training load + ACWR chart + deload banner ([#13](https://github.com/slm37102/Climbing-Training-Planner/issues/13)) | ✅ | [#20](https://github.com/slm37102/Climbing-Training-Planner/pull/20) |
+
+**All P0 items shipped 2026-04-20.** 🎉
 
 ### P1 — next quarter
 

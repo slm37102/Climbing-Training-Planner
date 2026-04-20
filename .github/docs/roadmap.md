@@ -28,6 +28,16 @@
 | ✅ Timer Presets | Pre-loaded hangboard protocols in WorkoutForm | Jan 2026 |
 | ✅ Progress Dashboard | Stats, calendar heatmap, grade profile, time ranges | Jan 2026 |
 | ✅ Goal Tracking | Grade targets, strength benchmarks, auto-detection, achievements | Jan 2026 |
+| ✅ Firestore Security Rules | Owner-only access via `request.auth.uid == uid` ([#16](https://github.com/slm37102/Climbing-Training-Planner/pull/16)) | Apr 2026 |
+| ✅ Env-var Firebase Config | `VITE_FIREBASE_*` config; startup validation ([#17](https://github.com/slm37102/Climbing-Training-Planner/pull/17)) | Apr 2026 |
+| ✅ Stable IDs + Grade Ordering | `crypto.randomUUID` + numeric grade ranking ([#15](https://github.com/slm37102/Climbing-Training-Planner/pull/15)) | Apr 2026 |
+| ✅ Hangboard Protocol Entity | Science-backed protocol catalog + picker ([#18](https://github.com/slm37102/Climbing-Training-Planner/pull/18)) | Apr 2026 |
+| ✅ Grade System Preference + Conversion | V / Font / YDS / French / UIAA with per-climb system ([#19](https://github.com/slm37102/Climbing-Training-Planner/pull/19)) | Apr 2026 |
+| ✅ ACWR Deload Banner | Chronic/acute load chart + deload guidance ([#20](https://github.com/slm37102/Climbing-Training-Planner/pull/20)) | Apr 2026 |
+| ✅ Pre-Session Readiness | Sleep / skin / energy / stress → readiness score + swap dialog ([#22](https://github.com/slm37102/Climbing-Training-Planner/pull/22)) | Apr 2026 |
+| ✅ Progressive-Overload Prompts | Per-pillar overload rules surfaced in SessionTracker + Dashboard ([#23](https://github.com/slm37102/Climbing-Training-Planner/pull/23)) | Apr 2026 |
+| ✅ Training Plan Templates | 7 seed plans (Just Climb, RCTM, Peaking, Undulating, Rehab, Comp, Intro) ([#24](https://github.com/slm37102/Climbing-Training-Planner/pull/24)) | Apr 2026 |
+| ✅ Onboarding Wizard | 7-question flow → auto-assigned plan for persona ([#25](https://github.com/slm37102/Climbing-Training-Planner/pull/25)) | Apr 2026 |
 
 ---
 
@@ -35,7 +45,11 @@
 
 | # | Feature | Status | Clarified? | Doc |
 |---|---------|--------|------------|-----|
-| 1 | Periodization / Weekly Templates | 🔲 | ❓ | [periodization-training.md](periodization-training.md) |
+| 1 | Periodization / Weekly Templates | 🚧 (partial — plan templates shipped; full macro/meso cycle UI pending) | ❓ | [periodization-training.md](periodization-training.md) |
+| 2 | Bundle code-splitting (lazy-load pages) | 🔲 | ❓ | — |
+| 3 | Offline / PWA (Firestore persistence + service worker) | 🔲 | ❓ | — |
+| 4 | Wake Lock + timestamp-based timers | 🔲 | ❓ | — |
+| 5 | React Router + deep links | 🔲 | ❓ | — |
 
 ---
 
@@ -87,4 +101,4 @@
 
 ---
 
-*Last updated: January 30, 2026*
+*Last updated: April 20, 2026 — all 11 P0 items from the unified roadmap shipped.*
