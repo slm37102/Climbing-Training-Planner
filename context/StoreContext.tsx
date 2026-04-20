@@ -10,8 +10,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal } from '../types';
+import { Workout, ScheduledWorkout, SessionLog, UserSettings, WorkoutType, Exercise, ExerciseCategory, Goal, TrainingPlan } from '../types';
 import { generateId, formatDate } from '../utils';
+import { SEED_TRAINING_PLANS, buildPlanApplication } from '../data/trainingPlans';
 
 interface StoreContextType {
   workouts: Workout[];
@@ -51,6 +52,10 @@ interface StoreContextType {
   
   resetData: () => void;
   updateSettings: (updates: Partial<UserSettings>) => Promise<void>;
+
+  // Training plans (read-only seed catalog)
+  trainingPlans: TrainingPlan[];
+  applyTrainingPlan: (planId: string, startDate: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -620,6 +625,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  const applyTrainingPlan = async (planId: string, startDate: string) => {
+    if (!user) return;
+    const plan = SEED_TRAINING_PLANS.find((p) => p.id === planId);
+    if (!plan) return;
+
+    const { newWorkouts, newScheduleEntries } = buildPlanApplication(
+      plan,
+      startDate,
+      workouts,
+      generateId
+    );
+
+    const batch = writeBatch(db);
+    newWorkouts.forEach((w) => {
+      batch.set(doc(db, 'users', user.uid, 'workouts', w.id), w);
+    });
+    newScheduleEntries.forEach((s) => {
+      batch.set(doc(db, 'users', user.uid, 'schedule', s.id), s);
+    });
+    await batch.commit();
+
+    await updateSettings({ activePlanId: planId });
+  };
+
   const resetData = async () => {
     if (!user) return;
     // Delete all user data and reseed
@@ -661,7 +690,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       endSession,
       deleteSession,
       resetData,
-      updateSettings
+      updateSettings,
+      trainingPlans: SEED_TRAINING_PLANS,
+      applyTrainingPlan
     }}>
       {children}
     </StoreContext.Provider>

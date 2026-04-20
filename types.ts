@@ -69,6 +69,16 @@ export interface WorkoutExercise {
   notes?: string;
 }
 
+export type TrainingPhase =
+  | 'Base'
+  | 'Strength'
+  | 'Power'
+  | 'PowerEndurance'
+  | 'Performance'
+  | 'Deload'
+  | 'Taper'
+  | 'Rehab';
+
 export interface Workout {
   id: string;
   name: string;
@@ -78,6 +88,25 @@ export interface Workout {
   steps: string[]; // Simple text steps for now
   timerConfig?: TimerConfig;
   exercises?: WorkoutExercise[]; // Structured exercises
+  phase?: TrainingPhase;
+  personaTags?: string[];
+}
+
+export interface PlanWeek {
+  weekNumber: number; // 1-indexed
+  phase: TrainingPhase;
+  label?: string;
+  // Slot-based: keys are 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+  slots: { [day: string]: { workoutName: string; notes?: string } };
+}
+
+export interface TrainingPlan {
+  id: string;
+  name: string;
+  description: string;
+  personaTags: string[];
+  durationWeeks: number;
+  weeks: PlanWeek[];
 }
 
 export interface ScheduledWorkout {
@@ -133,6 +162,7 @@ export interface UserSettings {
   defaultGradeSystem: GradeSystem;
   startOfWeek: 'Monday' | 'Sunday';
   weightUnit: 'kg' | 'lbs';
+  activePlanId?: string;
 }
 
 // Goal Types

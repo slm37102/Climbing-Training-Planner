@@ -1,18 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Button } from '../components/ui/Button';
-import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X, Sparkles } from 'lucide-react';
-import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS, AppView } from '../types';
+import { Plus, Clock, FileText, Trash2, Edit2, Timer, ChevronDown, ChevronRight, Search, Dumbbell, Layers, X, Sparkles, BookOpen, Calendar } from 'lucide-react';
+import { Workout, WorkoutType, TimerConfig, Exercise, ExerciseCategory, WorkoutExercise, DEFAULT_INTERVAL_PRESETS, AppView, TrainingPlan, TrainingPhase } from '../types';
 import { cn } from '../utils';
 
-type TabType = 'workouts' | 'exercises';
+type TabType = 'workouts' | 'exercises' | 'plans';
 
 interface WorkoutLibraryProps {
   onNavigate?: (view: AppView) => void;
 }
 
 export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) => {
-  const { workouts, exercises, addWorkout, updateWorkout, deleteWorkout, addExercise, updateExercise, deleteExercise } = useStore();
+  const { workouts, exercises, addWorkout, updateWorkout, deleteWorkout, addExercise, updateExercise, deleteExercise, trainingPlans, applyTrainingPlan, settings } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>('workouts');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -212,6 +212,17 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
         >
           <Dumbbell className="w-4 h-4" /> Exercises
         </button>
+        <button
+          onClick={() => setActiveTab('plans')}
+          className={cn(
+            "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2",
+            activeTab === 'plans'
+              ? "bg-amber-500 text-stone-900"
+              : "text-stone-400 hover:text-stone-200"
+          )}
+        >
+          <BookOpen className="w-4 h-4" /> Plans
+        </button>
       </div>
 
       {/* Search Bar */}
@@ -311,8 +322,7 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
             <>
               <Button onClick={() => setIsCreatingExercise(true)} size="sm" className="w-full">
                 <Plus className="w-4 h-4 mr-1" /> New Exercise
-              </Button>
-              <div className="space-y-2">
+              </Button>              <div className="space-y-2">
                 {Object.values(ExerciseCategory).map(category => {
                   const categoryExercises = exercisesByCategory[category];
                   const isExpanded = expandedCategories.has(category);
@@ -409,7 +419,187 @@ export const WorkoutLibrary: React.FC<WorkoutLibraryProps> = ({ onNavigate }) =>
           )}
         </>
       )}
+
+      {/* PLANS TAB */}
+      {activeTab === 'plans' && (
+        <PlansTab
+          plans={trainingPlans}
+          activePlanId={settings.activePlanId}
+          onApply={applyTrainingPlan}
+          searchQuery={searchQuery}
+        />
+      )}
     </div>
+  );
+};
+
+// --- Plans Tab --------------------------------------------------------------
+interface PlansTabProps {
+  plans: TrainingPlan[];
+  activePlanId?: string;
+  onApply: (planId: string, startDate: string) => Promise<void>;
+  searchQuery: string;
+}
+
+const nextMondayISO = (): string => {
+  const d = new Date();
+  const day = d.getDay(); // 0 Sun .. 6 Sat
+  const delta = day === 1 ? 0 : (8 - day) % 7 || 7;
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().split('T')[0];
+};
+
+const PHASE_STYLES: Record<TrainingPhase, string> = {
+  Base: 'bg-stone-700/60 text-stone-200',
+  Strength: 'bg-amber-500/20 text-amber-300',
+  Power: 'bg-red-500/20 text-red-300',
+  PowerEndurance: 'bg-orange-500/20 text-orange-300',
+  Performance: 'bg-emerald-500/20 text-emerald-300',
+  Deload: 'bg-sky-500/20 text-sky-300',
+  Taper: 'bg-indigo-500/20 text-indigo-300',
+  Rehab: 'bg-rose-500/20 text-rose-300',
+};
+
+const PlansTab: React.FC<PlansTabProps> = ({ plans, activePlanId, onApply, searchQuery }) => {
+  const [confirmPlan, setConfirmPlan] = useState<TrainingPlan | null>(null);
+  const [startDate, setStartDate] = useState<string>(nextMondayISO());
+  const [applying, setApplying] = useState(false);
+
+  const filteredPlans = useMemo(() => {
+    if (!searchQuery) return plans;
+    const q = searchQuery.toLowerCase();
+    return plans.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.personaTags.some((t) => t.toLowerCase().includes(q))
+    );
+  }, [plans, searchQuery]);
+
+  const phaseBreakdown = (plan: TrainingPlan): { phase: TrainingPhase; weeks: number }[] => {
+    const counts = new Map<TrainingPhase, number>();
+    plan.weeks.forEach((w) => counts.set(w.phase, (counts.get(w.phase) || 0) + 1));
+    return Array.from(counts.entries()).map(([phase, weeks]) => ({ phase, weeks }));
+  };
+
+  const handleApply = async () => {
+    if (!confirmPlan) return;
+    setApplying(true);
+    try {
+      await onApply(confirmPlan.id, startDate);
+      setConfirmPlan(null);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="grid gap-4">
+        {filteredPlans.map((plan) => {
+          const breakdown = phaseBreakdown(plan);
+          const isActive = plan.id === activePlanId;
+          return (
+            <div
+              key={plan.id}
+              className={cn(
+                'bg-stone-800 p-4 rounded-xl border',
+                isActive ? 'border-amber-500' : 'border-stone-700'
+              )}
+            >
+              <div className="flex justify-between items-start mb-1 gap-2">
+                <h3 className="font-bold text-lg text-stone-100">{plan.name}</h3>
+                {isActive && (
+                  <span className="text-[10px] uppercase tracking-wide bg-amber-500 text-stone-900 px-2 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-stone-500 mb-2">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" /> {plan.durationWeeks} wk
+                </span>
+              </div>
+              <p className="text-stone-400 text-sm mb-3">{plan.description}</p>
+
+              <div className="flex flex-wrap gap-1 mb-3">
+                {plan.personaTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[10px] uppercase tracking-wide bg-stone-700 text-stone-300 px-1.5 py-0.5 rounded"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-1 mb-3">
+                {breakdown.map(({ phase, weeks }) => (
+                  <span
+                    key={phase}
+                    className={cn(
+                      'text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide',
+                      PHASE_STYLES[phase]
+                    )}
+                  >
+                    {phase} × {weeks}
+                  </span>
+                ))}
+              </div>
+
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setStartDate(nextMondayISO());
+                  setConfirmPlan(plan);
+                }}
+              >
+                Apply plan
+              </Button>
+            </div>
+          );
+        })}
+        {filteredPlans.length === 0 && (
+          <p className="text-stone-500 text-center py-8">No plans found</p>
+        )}
+      </div>
+
+      {confirmPlan && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-stone-800 border border-stone-700 rounded-xl p-4 w-full max-w-sm">
+            <div className="flex items-start justify-between mb-2">
+              <h3 className="text-lg font-bold text-stone-100">Apply {confirmPlan.name}?</h3>
+              <button
+                onClick={() => setConfirmPlan(null)}
+                className="p-1 text-stone-400 hover:text-stone-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-stone-400 mb-3">
+              Applies {confirmPlan.durationWeeks} weeks starting Monday {startDate}. Any existing
+              schedule in that range will remain — new entries are added on top.
+            </p>
+            <label className="block text-xs text-stone-400 mb-1">Start Monday</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-stone-900 border border-stone-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 mb-4"
+            />
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="flex-1" onClick={() => setConfirmPlan(null)}>
+                Cancel
+              </Button>
+              <Button size="sm" className="flex-1" onClick={handleApply} disabled={applying}>
+                {applying ? 'Applying…' : 'Apply'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
