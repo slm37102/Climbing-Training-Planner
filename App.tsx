@@ -1,18 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
-import { Planner } from './pages/Planner';
-import { WorkoutLibrary } from './pages/WorkoutLibrary';
-import { SessionTracker } from './pages/SessionTracker';
-import { Progress } from './pages/Progress';
-import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
-import { HangboardPicker } from './pages/HangboardPicker';
 import { Onboarding, OnboardingAnswers } from './pages/Onboarding';
+import { LoadingFallback } from './components/LoadingFallback';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppView } from './types';
 import { pickPlanForPersona, nextMondayISO } from './utils/onboarding';
+
+const Planner = lazy(() =>
+  import('./pages/Planner').then((m) => ({ default: m.Planner }))
+);
+const WorkoutLibrary = lazy(() =>
+  import('./pages/WorkoutLibrary').then((m) => ({ default: m.WorkoutLibrary }))
+);
+const SessionTracker = lazy(() =>
+  import('./pages/SessionTracker').then((m) => ({ default: m.SessionTracker }))
+);
+const Progress = lazy(() =>
+  import('./pages/Progress').then((m) => ({ default: m.Progress }))
+);
+const Settings = lazy(() =>
+  import('./pages/Settings').then((m) => ({ default: m.Settings }))
+);
+const HangboardPicker = lazy(() =>
+  import('./pages/HangboardPicker').then((m) => ({ default: m.HangboardPicker }))
+);
 
 const SEED_WORKOUT_IDS = new Set(['w1', 'w2', 'w3', 'w4']);
 
@@ -130,7 +145,9 @@ const AppContent: React.FC = () => {
 
   return (
     <Layout currentView={currentView} onNavigate={setCurrentView}>
-      {renderView()}
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingFallback />}>{renderView()}</Suspense>
+      </ErrorBoundary>
     </Layout>
   );
 };
